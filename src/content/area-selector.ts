@@ -49,12 +49,32 @@ const OVERLAY_CSS = `
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 14px;
   border-radius: 999px;
   background: rgba(17, 17, 20, 0.85);
   color: #fff;
   pointer-events: none;
 }
+.cancel {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font: 600 13px/1 inherit;
+  cursor: pointer;
+}
+.cancel:hover { background: rgba(255, 255, 255, 0.3); }
 `;
 
 interface Overlay {
@@ -63,6 +83,7 @@ interface Overlay {
   sizeLabel: HTMLDivElement;
   hint: HTMLDivElement;
   dim: HTMLDivElement;
+  cancel: HTMLButtonElement;
 }
 
 function buildOverlay(): Overlay {
@@ -95,12 +116,22 @@ function buildOverlay(): Overlay {
 
   const hint = document.createElement('div');
   hint.className = 'hint';
-  hint.textContent = UI_TEXT.selectHint;
 
+  const hintText = document.createElement('span');
+  hintText.textContent = UI_TEXT.selectHint;
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'cancel';
+  cancel.textContent = '×';
+  cancel.title = UI_TEXT.cancelAction;
+  cancel.setAttribute('aria-label', UI_TEXT.cancelAction);
+
+  hint.append(hintText, cancel);
   root.append(dim, selection, sizeLabel, hint);
   shadow.append(style, root);
 
-  return { host, selection, sizeLabel, hint, dim };
+  return { host, selection, sizeLabel, hint, dim, cancel };
 }
 
 function normalizeRect(ax: number, ay: number, bx: number, by: number): Rect {
@@ -160,6 +191,7 @@ export function selectArea(): Promise<Rect | null> {
     };
 
     const onMouseDown = (event: MouseEvent): void => {
+      if (event.composedPath().includes(overlay.cancel)) return;
       if (event.button !== 0) {
         finish(null);
         return;
@@ -189,6 +221,8 @@ export function selectArea(): Promise<Rect | null> {
       finish(rect.width >= MIN_SIZE_PX && rect.height >= MIN_SIZE_PX ? rect : null);
     };
 
+    const onCancelClick = (): void => finish(null);
+
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -200,6 +234,7 @@ export function selectArea(): Promise<Rect | null> {
     const blockEvent = (event: Event): void => event.preventDefault();
 
     const teardown = (): void => {
+      overlay.cancel.removeEventListener('click', onCancelClick);
       overlay.host.removeEventListener('mousedown', onMouseDown, true);
       window.removeEventListener('mousemove', onMouseMove, true);
       window.removeEventListener('mouseup', onMouseUp, true);
@@ -210,6 +245,7 @@ export function selectArea(): Promise<Rect | null> {
       overlay.host.remove();
     };
 
+    overlay.cancel.addEventListener('click', onCancelClick);
     overlay.host.addEventListener('mousedown', onMouseDown, true);
     window.addEventListener('mousemove', onMouseMove, true);
     window.addEventListener('mouseup', onMouseUp, true);
