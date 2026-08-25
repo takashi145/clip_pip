@@ -1,28 +1,42 @@
 /**
- * Text Pin にはポップアップが無く、content script の注入自体に失敗すると
- * ページ内トーストも出せない。この経路だけはアイコンのバッジとツールチップで
- * 理由を伝える。notifications 権限を増やさずに済ませるための選択。
+ * コンテキストメニュー経由の実行にはポップアップが無く、content script の注入
+ * 自体に失敗するとページ内トーストも出せない。この経路だけはアイコンのバッジと
+ * ツールチップで理由を伝える。notifications 権限を増やさずに済ませるための選択。
  */
 import { describeFailure, preflightError } from '../shared/failure';
-import type { CaptureResult, StartTextPinMessage } from '../shared/types';
+import type { CaptureResult, ContentMessage } from '../shared/types';
 import { MessageType } from '../shared/types';
 
-const TEXT_PIN_MENU_ID = 'clippip/text-pin';
+const MENU_ID = {
+  areaPin: 'clippip/area-pin',
+  textPin: 'clippip/text-pin',
+} as const;
+
 const CONTENT_SCRIPT = 'content.js';
 const BADGE_CLEAR_DELAY_MS = 8000;
 
-function registerContextMenu(): void {
+/**
+ * selection と、それ以外の context は排他なので、右クリックの状況に応じて
+ * どちらか一方だけがメニューに出る。入れ子にせず並列に登録する。
+ * editable は入力欄のメニューを埋めたくないため対象外。
+ */
+function registerContextMenus(): void {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
-      id: TEXT_PIN_MENU_ID,
+      id: MENU_ID.areaPin,
+      title: '範囲を選択してPiP表示',
+      contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
+    });
+    chrome.contextMenus.create({
+      id: MENU_ID.textPin,
       title: '選択テキストをPiP表示',
       contexts: ['selection'],
     });
   });
 }
 
-chrome.runtime.onInstalled.addListener(registerContextMenu);
-chrome.runtime.onStartup.addListener(registerContextMenu);
+chrome.runtime.onInstalled.addListener(registerContextMenus);
+chrome.runtime.onStartup.addListener(registerContextMenus);
 
 async function clearBadge(tabId: number): Promise<void> {
   try {
@@ -48,12 +62,23 @@ async function reportFailure(tabId: number, message: string): Promise<void> {
   }
 }
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== TEXT_PIN_MENU_ID) return;
+/** クリックされたメニューから、content script へ送るメッセージを決める。 */
+function toContentMessage(info: chrome.contextMenus.OnClickData): ContentMessage | null {
+  if (info.menuItemId === MENU_ID.areaPin) {
+    return { type: MessageType.StartAreaPin };
+  }
+  if (info.menuItemId === MENU_ID.textPin) {
+    const fallbackText = info.selectionText ?? '';
+    if (fallbackText.trim().length === 0) return null;
+    return { type: MessageType.StartTextPin, fallbackText };
+  }
+  return null;
+}
 
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
-  const selectionText = info.selectionText ?? '';
-  if (tabId === undefined || selectionText.trim().length === 0) return;
+  const message = toContentMessage(info);
+  if (tabId === undefined || !message) return;
 
   await clearBadge(tabId);
 
@@ -66,12 +91,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: [CONTENT_SCRIPT] });
-    await chrome.tabs.sendMessage(tabId, {
-      type: MessageType.StartTextPin,
-      fallbackText: selectionText,
-    } satisfies StartTextPinMessage);
+    await chrome.tabs.sendMessage(tabId, message);
   } catch (error) {
-    console.error('[ClipPiP] failed to start Text Pin', { url, error });
+    console.error('[ClipPiP] failed to start from the context menu', { url, error });
     await reportFailure(tabId, describeFailure(error, url));
   }
 });
