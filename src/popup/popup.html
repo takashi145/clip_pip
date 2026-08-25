@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>ClipPiP</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header class="header">
+        <h1 class="title">ClipPiP</h1>
+        <p class="subtitle">見続けたい部分だけを最前面に。</p>
+      </header>
+
+      <button id="area-pin" class="primary" type="button">範囲を選択</button>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section class="hint">
+        <h2 class="hint-title">テキストをPiP表示するには</h2>
+        <p class="hint-body">
+          ページ上でテキストを選択して右クリックし、<br />
+          「選択テキストをPiP表示」を選びます。
+        </p>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
