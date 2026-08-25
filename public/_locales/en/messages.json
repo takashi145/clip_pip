@@ -1,0 +1,101 @@
+{
+  "extDescription": {
+    "message": "Temporarily pin a selected region or selected text to a Picture-in-Picture window."
+  },
+  "popupTitle": {
+    "message": "ClipPiP"
+  },
+  "popupSubtitle": {
+    "message": "Keep just the part you need on top."
+  },
+  "areaPinButton": {
+    "message": "Select an area"
+  },
+  "confirmSwitchLabel": {
+    "message": "Confirm before switching PiP"
+  },
+  "textPinHintTitle": {
+    "message": "To pin selected text"
+  },
+  "textPinHintBody": {
+    "message": "Select text on the page, right-click, and\nchoose \"Pin selected text to PiP\"."
+  },
+  "pipUnsupported": {
+    "message": "This browser doesn't support Picture-in-Picture."
+  },
+  "captureFailed": {
+    "message": "This page's selected area couldn't be captured."
+  },
+  "pipFailed": {
+    "message": "Couldn't open the PiP window."
+  },
+  "restrictedPage": {
+    "message": "ClipPiP can't be used on this page."
+  },
+  "pdfNotSupported": {
+    "message": "ClipPiP can't be used in Chrome's built-in PDF viewer."
+  },
+  "fileAccessRequired": {
+    "message": "To use local files, enable \"Allow access to file URLs\" in the extension's details."
+  },
+  "reloadRequired": {
+    "message": "Reload the page and try again."
+  },
+  "noActiveTab": {
+    "message": "Couldn't find the active tab."
+  },
+  "noSelection": {
+    "message": "No text is selected."
+  },
+  "busy": {
+    "message": "ClipPiP is already handling another action."
+  },
+  "startFailed": {
+    "message": "Couldn't start. Reload the page and try again."
+  },
+  "selectHint": {
+    "message": "Drag to select an area (Esc to cancel)"
+  },
+  "activationPrompt": {
+    "message": "Click to open the PiP window."
+  },
+  "activationAction": {
+    "message": "Show PiP"
+  },
+  "switchTitle": {
+    "message": "This will close the current PiP"
+  },
+  "switchBody": {
+    "message": "Chrome allows only one PiP window at a time. Opening a new one will close what's currently shown."
+  },
+  "switchAction": {
+    "message": "Close and switch"
+  },
+  "cancelAction": {
+    "message": "Cancel"
+  },
+  "dontAskAgain": {
+    "message": "Don't ask again"
+  },
+  "closeButton": {
+    "message": "Close"
+  },
+  "contextMenuAreaPin": {
+    "message": "Select an area to pin to PiP"
+  },
+  "contextMenuTextPin": {
+    "message": "Pin selected text to PiP"
+  },
+  "badgeDefaultTitle": {
+    "message": "ClipPiP"
+  },
+  "badgeErrorTitle": {
+    "message": "ClipPiP: $MESSAGE$",
+    "placeholders": {
+      "message": {
+        "content": "$1",
+        "example": "ClipPiP can't be used on this page."
+      }
+    }
+  }
+}

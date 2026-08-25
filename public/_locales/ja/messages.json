@@ -1,0 +1,101 @@
+{
+  "extDescription": {
+    "message": "選択した範囲やテキストを、Picture-in-Pictureウィンドウに一時表示します。"
+  },
+  "popupTitle": {
+    "message": "ClipPiP"
+  },
+  "popupSubtitle": {
+    "message": "見続けたい部分だけを最前面に。"
+  },
+  "areaPinButton": {
+    "message": "範囲を選択"
+  },
+  "confirmSwitchLabel": {
+    "message": "PiPを切り替える前に確認する"
+  },
+  "textPinHintTitle": {
+    "message": "テキストをPiP表示するには"
+  },
+  "textPinHintBody": {
+    "message": "ページ上でテキストを選択して右クリックし、\n「選択テキストをPiP表示」を選びます。"
+  },
+  "pipUnsupported": {
+    "message": "このブラウザではPicture-in-Picture表示に対応していません。"
+  },
+  "captureFailed": {
+    "message": "このページでは範囲をキャプチャできませんでした。"
+  },
+  "pipFailed": {
+    "message": "PiPウィンドウを開けませんでした。"
+  },
+  "restrictedPage": {
+    "message": "このページではClipPiPを利用できません。"
+  },
+  "pdfNotSupported": {
+    "message": "ChromeのPDFビューアではClipPiPを利用できません。"
+  },
+  "fileAccessRequired": {
+    "message": "ローカルファイルで使うには、拡張機能の詳細で「ファイルのURLへのアクセスを許可する」を有効にしてください。"
+  },
+  "reloadRequired": {
+    "message": "ページを再読み込みしてから、もう一度お試しください。"
+  },
+  "noActiveTab": {
+    "message": "対象のタブが見つかりませんでした。"
+  },
+  "noSelection": {
+    "message": "テキストが選択されていません。"
+  },
+  "busy": {
+    "message": "ClipPiPは別の操作を実行中です。"
+  },
+  "startFailed": {
+    "message": "開始できませんでした。ページを再読み込みしてお試しください。"
+  },
+  "selectHint": {
+    "message": "ドラッグで範囲を選択（Escでキャンセル）"
+  },
+  "activationPrompt": {
+    "message": "PiPウィンドウを開くにはクリックしてください。"
+  },
+  "activationAction": {
+    "message": "PiP表示"
+  },
+  "switchTitle": {
+    "message": "表示中のPiPを閉じます"
+  },
+  "switchBody": {
+    "message": "Chromeは同時に1つのPiPしか開けません。新しくPiP表示すると、いま表示している内容は閉じられます。"
+  },
+  "switchAction": {
+    "message": "閉じて切り替える"
+  },
+  "cancelAction": {
+    "message": "キャンセル"
+  },
+  "dontAskAgain": {
+    "message": "次回から確認しない"
+  },
+  "closeButton": {
+    "message": "閉じる"
+  },
+  "contextMenuAreaPin": {
+    "message": "範囲を選択してPiP表示"
+  },
+  "contextMenuTextPin": {
+    "message": "選択テキストをPiP表示"
+  },
+  "badgeDefaultTitle": {
+    "message": "ClipPiP"
+  },
+  "badgeErrorTitle": {
+    "message": "ClipPiP: $MESSAGE$",
+    "placeholders": {
+      "message": {
+        "content": "$1",
+        "example": "このページではClipPiPを利用できません。"
+      }
+    }
+  }
+}

@@ -1,32 +1,29 @@
 <!doctype html>
-<html lang="ja">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>ClipPiP</title>
+    <title data-i18n="popupTitle">ClipPiP</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <main class="panel">
       <header class="header">
-        <h1 class="title">ClipPiP</h1>
-        <p class="subtitle">見続けたい部分だけを最前面に。</p>
+        <h1 class="title" data-i18n="popupTitle">ClipPiP</h1>
+        <p class="subtitle" data-i18n="popupSubtitle"></p>
       </header>
 
-      <button id="area-pin" class="primary" type="button">範囲を選択</button>
+      <button id="area-pin" class="primary" type="button" data-i18n="areaPinButton"></button>
 
       <p id="error" class="error" role="alert" hidden></p>
 
       <label class="setting">
         <input id="confirm-switch" type="checkbox" />
-        <span>PiPを切り替える前に確認する</span>
+        <span data-i18n="confirmSwitchLabel"></span>
       </label>
 
       <section class="hint">
-        <h2 class="hint-title">テキストをPiP表示するには</h2>
-        <p class="hint-body">
-          ページ上でテキストを選択して右クリックし、<br />
-          「選択テキストをPiP表示」を選びます。
-        </p>
+        <h2 class="hint-title" data-i18n="textPinHintTitle"></h2>
+        <p class="hint-body" data-i18n-lines="textPinHintBody"></p>
       </section>
     </main>
     <script src="popup.js"></script>

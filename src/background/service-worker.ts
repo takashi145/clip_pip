@@ -5,7 +5,7 @@
  */
 import { describeFailure, preflightError } from '../shared/failure';
 import type { CaptureResult, ContentMessage } from '../shared/types';
-import { MessageType } from '../shared/types';
+import { formatBadgeErrorTitle, MessageType, UI_TEXT } from '../shared/types';
 
 const MENU_ID = {
   areaPin: 'clippip/area-pin',
@@ -24,12 +24,12 @@ function registerContextMenus(): void {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: MENU_ID.areaPin,
-      title: '範囲を選択してPiP表示',
+      title: UI_TEXT.contextMenuAreaPin,
       contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
     });
     chrome.contextMenus.create({
       id: MENU_ID.textPin,
-      title: '選択テキストをPiP表示',
+      title: UI_TEXT.contextMenuTextPin,
       contexts: ['selection'],
     });
   });
@@ -41,7 +41,7 @@ chrome.runtime.onStartup.addListener(registerContextMenus);
 async function clearBadge(tabId: number): Promise<void> {
   try {
     await chrome.action.setBadgeText({ tabId, text: '' });
-    await chrome.action.setTitle({ tabId, title: 'ClipPiP' });
+    await chrome.action.setTitle({ tabId, title: UI_TEXT.badgeDefaultTitle });
   } catch {
     // タブが閉じられている場合は何もしない
   }
@@ -55,7 +55,7 @@ async function reportFailure(tabId: number, message: string): Promise<void> {
   try {
     await chrome.action.setBadgeText({ tabId, text: '!' });
     await chrome.action.setBadgeBackgroundColor({ tabId, color: '#c2410c' });
-    await chrome.action.setTitle({ tabId, title: `ClipPiP: ${message}` });
+    await chrome.action.setTitle({ tabId, title: formatBadgeErrorTitle(message) });
     setTimeout(() => void clearBadge(tabId), BADGE_CLEAR_DELAY_MS);
   } catch (error) {
     console.warn('[ClipPiP] failed to report the error on the action badge', error);

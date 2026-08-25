@@ -94,8 +94,8 @@ export function createCloseButton(doc: Document, theme: PipTheme, onClose: () =>
   });
   button.type = 'button';
   button.textContent = '×';
-  button.title = '閉じる';
-  button.setAttribute('aria-label', '閉じる');
+  button.title = UI_TEXT.closeButton;
+  button.setAttribute('aria-label', UI_TEXT.closeButton);
   button.addEventListener('mouseenter', () => button.style.setProperty('opacity', '1'));
   button.addEventListener('mouseleave', () => button.style.setProperty('opacity', '0.72'));
   button.addEventListener('click', onClose);

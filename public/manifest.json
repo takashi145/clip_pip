@@ -2,7 +2,8 @@
 	"manifest_version": 3,
 	"name": "ClipPiP",
 	"version": "0.1.0",
-	"description": "選択した範囲やテキストを、Picture-in-Pictureウィンドウに一時表示します。",
+	"default_locale": "ja",
+	"description": "__MSG_extDescription__",
 	"minimum_chrome_version": "116",
 	"permissions": [
 		"activeTab",
