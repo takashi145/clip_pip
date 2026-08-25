@@ -9,6 +9,7 @@ import type { PipOptions } from '../pip/pip-manager';
 import { isDocumentPipSupported, pipManager } from '../pip/pip-manager';
 import { renderTextPip, textPipSize } from '../pip/text-pip';
 import type { Ack, CaptureResult, ContentMessage } from '../shared/types';
+import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import { MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
 import { getSelectedText } from './text-selection';
@@ -58,7 +59,8 @@ interface ToastAction {
   onClick(): void;
 }
 
-function showToast(message: string, options: { action?: ToastAction; timeoutMs?: number } = {}): ToastHandle {
+/** ページ側 CSS から隔離したトースト土台を作る。 */
+function mountToast(message: string): { host: HTMLDivElement; toast: HTMLDivElement } {
   const host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
@@ -71,6 +73,13 @@ function showToast(message: string, options: { action?: ToastAction; timeoutMs?:
   text.className = 'message';
   text.textContent = message;
   toast.append(text);
+
+  shadow.append(style, toast);
+  return { host, toast };
+}
+
+function showToast(message: string, options: { action?: ToastAction; timeoutMs?: number } = {}): ToastHandle {
+  const { host, toast } = mountToast(message);
 
   let timer: number | undefined;
   const dismiss = (): void => {
@@ -86,7 +95,6 @@ function showToast(message: string, options: { action?: ToastAction; timeoutMs?:
     toast.append(button);
   }
 
-  shadow.append(style, toast);
   document.documentElement.append(host);
 
   const timeoutMs = options.timeoutMs ?? 4000;
@@ -95,6 +103,184 @@ function showToast(message: string, options: { action?: ToastAction; timeoutMs?:
   }
 
   return { dismiss };
+}
+
+const CONFIRM_CSS = `
+:host { all: initial; }
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 10, 14, 0.55);
+  font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+        "Noto Sans JP", Meiryo, sans-serif;
+}
+.dialog {
+  width: min(420px, 100%);
+  padding: 20px 22px 18px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1a1a1f;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+.title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.body { margin: 0 0 16px; color: #4b4b57; }
+.dont-ask {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4b4b57;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.dont-ask input { margin: 0; cursor: pointer; }
+.actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.actions .spacer { flex: 1 1 auto; }
+button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 7px;
+  font: 600 13px/1.2 inherit;
+  cursor: pointer;
+}
+button.primary { background: #4f46e5; color: #fff; }
+button.primary:hover { background: #4338ca; }
+button.secondary { background: rgba(17, 17, 20, 0.07); color: #1a1a1f; }
+button.secondary:hover { background: rgba(17, 17, 20, 0.13); }
+@media (prefers-color-scheme: dark) {
+  .dialog { background: #212127; color: #f2f2f5; }
+  .body, .dont-ask { color: #b4b4be; }
+  button.secondary { background: rgba(255, 255, 255, 0.12); color: #f2f2f5; }
+  button.secondary:hover { background: rgba(255, 255, 255, 0.2); }
+}
+`;
+
+/**
+ * 切り替え確認。window.confirm() を使わないのは、モーダルの表示中も transient
+ * activation の 5 秒が進んでしまい、直後の requestWindow() が失敗しうるため。
+ * ボタンのクリックがそのまま新しい activation になるこの形なら確実に開ける。
+ */
+function confirmSwitch(): Promise<{ confirmed: boolean; dontAskAgain: boolean }> {
+  return new Promise((resolve) => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = CONFIRM_CSS;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'backdrop';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'dialog';
+    dialog.setAttribute('role', 'alertdialog');
+
+    const title = document.createElement('h2');
+    title.className = 'title';
+    const mark = document.createElement('span');
+    mark.className = 'mark';
+    mark.textContent = '!';
+    mark.setAttribute('aria-hidden', 'true');
+    const titleText = document.createElement('span');
+    titleText.textContent = UI_TEXT.switchTitle;
+    title.append(mark, titleText);
+
+    const body = document.createElement('p');
+    body.className = 'body';
+    body.textContent = UI_TEXT.switchBody;
+
+    const dontAsk = document.createElement('label');
+    dontAsk.className = 'dont-ask';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    const dontAskText = document.createElement('span');
+    dontAskText.textContent = UI_TEXT.dontAskAgain;
+    dontAsk.append(checkbox, dontAskText);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const spacer = document.createElement('div');
+    spacer.className = 'spacer';
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'secondary';
+    cancel.textContent = UI_TEXT.cancelAction;
+
+    const proceed = document.createElement('button');
+    proceed.type = 'button';
+    proceed.className = 'primary';
+    proceed.textContent = UI_TEXT.switchAction;
+
+    actions.append(spacer, cancel, proceed);
+    dialog.append(title, body, dontAsk, actions);
+    backdrop.append(dialog);
+    shadow.append(style, backdrop);
+
+    let settled = false;
+    const finish = (confirmed: boolean): void => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('keydown', onKeyDown, true);
+      host.remove();
+      resolve({ confirmed, dontAskAgain: checkbox.checked });
+    };
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      finish(false);
+    };
+
+    cancel.addEventListener('click', () => finish(false));
+    proceed.addEventListener('click', () => finish(true));
+    backdrop.addEventListener('mousedown', (event) => {
+      if (event.target === backdrop) finish(false);
+    });
+    window.addEventListener('keydown', onKeyDown, true);
+
+    document.documentElement.append(host);
+    proceed.focus();
+  });
+}
+
+/**
+ * 既に PiP が開いていれば、切り替えてよいか確認する。
+ * 選択やキャプチャに入る前に呼ぶこと。キャンセル時の手戻りを無くすため。
+ */
+async function allowSwitch(): Promise<boolean> {
+  if (!pipManager.isOpen) return true;
+  if (!(await shouldConfirmSwitch())) return true;
+
+  const { confirmed, dontAskAgain } = await confirmSwitch();
+  // 「次回から確認しない」は、切り替えを承諾した場合だけ保存する
+  if (confirmed && dontAskAgain) await setConfirmSwitch(false);
+  return confirmed;
 }
 
 /** 次の描画フレームを待つ。 */
@@ -162,6 +348,8 @@ async function runAreaPin(): Promise<void> {
     return;
   }
 
+  if (!(await allowSwitch())) return;
+
   const rect = await selectArea();
   if (!rect) return;
 
@@ -208,6 +396,8 @@ async function runTextPin(fallbackText: string): Promise<void> {
     showToast(UI_TEXT.noSelection);
     return;
   }
+
+  if (!(await allowSwitch())) return;
 
   const win = await openPipWithActivationFallback(textPipSize());
   if (!win) return;

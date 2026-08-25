@@ -3,11 +3,13 @@
  * content script はここで初めて注入する。常時の host permission は不要。
  */
 import { describeFailure, preflightError } from '../shared/failure';
+import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import type { StartAreaPinMessage } from '../shared/types';
 import { MessageType, UI_TEXT } from '../shared/types';
 
 const button = document.getElementById('area-pin') as HTMLButtonElement | null;
 const errorBox = document.getElementById('error') as HTMLParagraphElement | null;
+const confirmSwitchBox = document.getElementById('confirm-switch') as HTMLInputElement | null;
 
 function showError(message: string): void {
   if (!errorBox) return;
@@ -58,3 +60,12 @@ button?.addEventListener('click', () => {
     button.disabled = false;
   });
 });
+
+if (confirmSwitchBox) {
+  void shouldConfirmSwitch().then((value) => {
+    confirmSwitchBox.checked = value;
+  });
+  confirmSwitchBox.addEventListener('change', () => {
+    void setConfirmSwitch(confirmSwitchBox.checked);
+  });
+}

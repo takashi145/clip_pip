@@ -87,6 +87,22 @@ body {
   display: none;
 }
 
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.setting input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .hint {
   margin-top: 14px;
   padding: 10px 12px;

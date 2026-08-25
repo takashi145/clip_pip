@@ -106,6 +106,10 @@ class PipManager {
   private win: Window | null = null;
   private cleanups: Array<() => void> = [];
 
+  get isOpen(): boolean {
+    return this.win !== null && !this.win.closed;
+  }
+
   /** requestWindow() は transient activation を要求するため、ユーザー操作の直後に呼ぶこと。 */
   async open(options: PipOptions): Promise<Window> {
     const api = window.documentPictureInPicture;

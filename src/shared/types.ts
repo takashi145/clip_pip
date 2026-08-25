@@ -71,6 +71,13 @@ export const UI_TEXT = {
   selectHint: 'ドラッグで範囲を選択（Escでキャンセル）',
   activationPrompt: 'PiPウィンドウを開くにはクリックしてください。',
   activationAction: 'PiP表示',
+  switchTitle: '表示中のPiPを閉じます',
+  switchBody:
+    'Chromeは同時に1つのPiPしか開けません。新しくPiP表示すると、いま表示している内容は閉じられます。',
+  switchAction: '閉じて切り替える',
+  cancelAction: 'キャンセル',
+  dontAskAgain: '次回から確認しない',
+  confirmSwitchLabel: 'PiPを切り替える前に確認する',
 } as const;
 
 declare global {
