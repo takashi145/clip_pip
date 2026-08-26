@@ -4,6 +4,7 @@
  * ツールチップで理由を伝える。notifications 権限を増やさずに済ませるための選択。
  */
 import { describeFailure, preflightError } from '../shared/failure';
+import { focusSourceTab } from '../shared/source-tab';
 import type { Ack, CaptureResult, ContentMessage, PersistentPipState } from '../shared/types';
 import { formatBadgeErrorTitle, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
@@ -241,18 +242,10 @@ async function showHelper(): Promise<Ack> {
   }
 }
 
-/** フォールバック画面で PiP を開いた後、元タブへ戻す。 */
+/** フォールバック画面で PiP を開いた後、元タブへ戻す。既に閉じていれば何もしない。 */
 async function restoreSourceTab(): Promise<Ack> {
-  try {
-    const stored = await chrome.storage.session.get(SESSION_KEY.sourceTabId);
-    const sourceTabId = stored[SESSION_KEY.sourceTabId];
-    if (typeof sourceTabId !== 'number') return { ok: true };
-    const tab = await chrome.tabs.update(sourceTabId, { active: true });
-    if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: toErrorMessage(error) };
-  }
+  await focusSourceTab();
+  return { ok: true };
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {

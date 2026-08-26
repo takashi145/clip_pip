@@ -92,8 +92,8 @@
   "dontAskAgain": {
     "message": "Don't ask again"
   },
-  "closeButton": {
-    "message": "Close"
+  "returnToTab": {
+    "message": "Go to the source tab"
   },
   "contextMenuAreaPin": {
     "message": "Select an area to pin to PiP"

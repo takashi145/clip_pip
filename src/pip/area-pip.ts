@@ -5,7 +5,8 @@
 import type { CroppedImage } from '../capture/capture';
 import type { Rect } from '../shared/types';
 import { PIP_SIZE } from '../shared/types';
-import { createCloseButton, createElement, getPipTheme, pipManager } from './pip-manager';
+import type { PipControl } from './pip-manager';
+import { createElement, createPipControls, getPipTheme, pipManager } from './pip-manager';
 
 /** 窓を開いた直後のブラウザ都合のサイズ調整を、ユーザーのリサイズと取り違えないための猶予。 */
 const RESIZE_GRACE_MS = 600;
@@ -28,7 +29,7 @@ export function areaPipSize(rect: Rect): { width: number; height: number } {
   };
 }
 
-export function renderAreaPip(win: Window, image: CroppedImage): void {
+export function renderAreaPip(win: Window, image: CroppedImage, controls: PipControl[] = []): void {
   const doc = win.document;
   const theme = getPipTheme(win);
   doc.body.replaceChildren();
@@ -89,10 +90,9 @@ export function renderAreaPip(win: Window, image: CroppedImage): void {
     layout();
   };
 
-  const closeButton = createCloseButton(doc, theme, () => pipManager.close());
-
   stage.append(canvas);
-  doc.body.append(stage, closeButton);
+  doc.body.append(stage);
+  if (controls.length > 0) doc.body.append(createPipControls(doc, theme, controls));
   layout();
   win.addEventListener('resize', onResize);
 

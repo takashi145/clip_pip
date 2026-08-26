@@ -1,11 +1,12 @@
 import { PIP_SIZE } from '../shared/types';
-import { createCloseButton, createElement, getPipTheme, pipManager } from './pip-manager';
+import type { PipControl } from './pip-manager';
+import { createElement, createPipControls, getPipTheme, pipManager } from './pip-manager';
 
 export function textPipSize(): { width: number; height: number } {
   return { width: PIP_SIZE.textWidth, height: PIP_SIZE.textHeight };
 }
 
-export function renderTextPip(win: Window, text: string): void {
+export function renderTextPip(win: Window, text: string, controls: PipControl[] = []): void {
   const doc = win.document;
   const theme = getPipTheme(win);
   doc.body.replaceChildren();
@@ -16,7 +17,6 @@ export function renderTextPip(win: Window, text: string): void {
     overflowY: 'auto',
     overflowX: 'hidden',
     background: theme.background,
-    // 右上の閉じるボタンと本文が重ならないように上側の余白を広く取る
     padding: '44px 18px 18px',
     boxSizing: 'border-box',
   });
@@ -33,10 +33,9 @@ export function renderTextPip(win: Window, text: string): void {
   });
   body.textContent = text;
 
-  const closeButton = createCloseButton(doc, theme, () => pipManager.close());
-
   scroller.append(body);
-  doc.body.append(scroller, closeButton);
+  doc.body.append(scroller);
+  if (controls.length > 0) doc.body.append(createPipControls(doc, theme, controls));
 
   pipManager.registerCleanup(() => {
     body.textContent = '';

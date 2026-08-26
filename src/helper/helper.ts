@@ -6,9 +6,11 @@
 import { decodeImage } from '../capture/capture';
 import type { CroppedImage } from '../capture/capture';
 import { areaPipSize, renderAreaPip } from '../pip/area-pip';
+import type { PipControl } from '../pip/pip-manager';
 import { pipManager } from '../pip/pip-manager';
 import { renderTextPip, textPipSize } from '../pip/text-pip';
 import { localizeDocument } from '../shared/localize';
+import { focusSourceTab, getSourceTabId, isSourceTabAlive } from '../shared/source-tab';
 import type { Ack, PipActivation, PipPayload } from '../shared/types';
 import { MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
@@ -32,13 +34,58 @@ function closeSelf(): void {
   void chrome.runtime.sendMessage({ type: MessageType.ClosePersistentPip }).catch(() => undefined);
 }
 
-function renderPayload(win: Window, payload: PipPayload, image: CroppedImage | null): void {
+/**
+ * 「元のタブへ」ボタン。この PiP の opener はヘルパー自身なので、Chrome 標準の
+ * 「タブに戻る」は無効化してある（pip-manager）。代わりにキャプチャ元のタブへ
+ * 移動する手段をここで用意する。元タブが既に閉じられている場合は出さない。
+ */
+const RETURN_CONTROL_ID = 'return-to-source';
+
+let sourceTabId: number | null = null;
+
+function removeReturnButton(): void {
+  const win = pipManager.current;
+  win?.document.querySelector(`[data-clippip-control="${RETURN_CONTROL_ID}"]`)?.remove();
+}
+
+async function sourceTabControls(): Promise<PipControl[]> {
+  sourceTabId = await getSourceTabId();
+  if (sourceTabId === null || !(await isSourceTabAlive())) return [];
+
+  return [
+    {
+      id: RETURN_CONTROL_ID,
+      glyph: '↩',
+      label: UI_TEXT.returnToTab,
+      onClick: () => {
+        // 押されるまでの間に閉じられていたら、ボタンごと引っ込める
+        void focusSourceTab().then((moved) => {
+          if (!moved) removeReturnButton();
+        });
+      },
+    },
+  ];
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (sourceTabId === null || tabId !== sourceTabId) return;
+  sourceTabId = null;
+  removeReturnButton();
+});
+
+async function renderPayload(
+  win: Window,
+  payload: PipPayload,
+  image: CroppedImage | null,
+): Promise<void> {
+  const controls = await sourceTabControls();
+
   if (payload.kind === 'area') {
     if (!image) throw new Error('the image is not available');
     pendingImage = null;
-    renderAreaPip(win, image);
+    renderAreaPip(win, image, controls);
   } else {
-    renderTextPip(win, payload.text);
+    renderTextPip(win, payload.text, controls);
   }
 }
 
@@ -92,7 +139,7 @@ async function receivePayload(payload: PipPayload): Promise<Ack> {
   const win = pipManager.current;
   if (win) {
     try {
-      renderPayload(win, payload, pendingImage);
+      await renderPayload(win, payload, pendingImage);
       return { ok: true };
     } catch (error) {
       console.error('[ClipPiP] failed to render the PiP', error);
@@ -115,8 +162,8 @@ button?.addEventListener('click', () => {
 
   pipManager
     .open(size)
-    .then((win) => {
-      renderPayload(win, payload, image);
+    .then(async (win) => {
+      await renderPayload(win, payload, image);
       pipManager.registerCleanup(closeSelf);
       opening = false;
       return chrome.runtime.sendMessage({ type: MessageType.PersistentPipOpened });

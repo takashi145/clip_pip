@@ -92,8 +92,8 @@
   "dontAskAgain": {
     "message": "次回から確認しない"
   },
-  "closeButton": {
-    "message": "閉じる"
+  "returnToTab": {
+    "message": "元のタブへ"
   },
   "contextMenuAreaPin": {
     "message": "範囲を選択してPiP表示"
