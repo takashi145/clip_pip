@@ -7,23 +7,24 @@ import type { Rect } from '../shared/types';
 import { PIP_SIZE } from '../shared/types';
 import { createCloseButton, createElement, getPipTheme, pipManager } from './pip-manager';
 
-/** 選択矩形のアスペクト比から初期サイズを求める。実際の値はブラウザ側の制限が優先される。 */
+/** 窓を開いた直後のブラウザ都合のサイズ調整を、ユーザーのリサイズと取り違えないための猶予。 */
+const RESIZE_GRACE_MS = 600;
+
+/**
+ * 選択範囲と同じ大きさで開く。キャプチャの解像度は画面に表示されていたものが上限で、
+ * それより大きい窓で開いても引き伸ばされてぼやけるだけで情報は増えない。
+ * 実際の値はブラウザ側の制限が優先される。
+ */
 export function areaPipSize(rect: Rect): { width: number; height: number } {
   const maxWidth = Math.max(320, Math.floor((window.screen.availWidth || 1280) * 0.9));
   const maxHeight = Math.max(240, Math.floor((window.screen.availHeight || 720) * 0.9));
-  const ratio = rect.height / rect.width;
 
-  let width = Math.min(PIP_SIZE.areaWidth, maxWidth);
-  let height = Math.round(width * ratio);
-
-  if (height > maxHeight) {
-    height = maxHeight;
-    width = Math.round(height / ratio);
-  }
+  // 画面に収まらないときだけ、アスペクト比を保ったまま縮める
+  const shrink = Math.min(1, maxWidth / rect.width, maxHeight / rect.height);
 
   return {
-    width: Math.max(PIP_SIZE.minWidth, Math.min(width, maxWidth)),
-    height: Math.max(PIP_SIZE.minHeight, Math.min(height, maxHeight)),
+    width: Math.max(PIP_SIZE.minWidth, Math.round(rect.width * shrink)),
+    height: Math.max(PIP_SIZE.minHeight, Math.round(rect.height * shrink)),
   };
 }
 
@@ -35,9 +36,6 @@ export function renderAreaPip(win: Window, image: CroppedImage): void {
   const stage = createElement(doc, 'div', {
     position: 'absolute',
     inset: '0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
     background: theme.background,
   });
@@ -46,11 +44,7 @@ export function renderAreaPip(win: Window, image: CroppedImage): void {
   canvas.width = image.width;
   canvas.height = image.height;
   canvas.style.setProperty('display', 'block');
-  canvas.style.setProperty('max-width', '100%');
-  canvas.style.setProperty('max-height', '100%');
-  canvas.style.setProperty('width', 'auto');
-  canvas.style.setProperty('height', 'auto');
-  canvas.style.setProperty('object-fit', 'contain');
+  canvas.style.setProperty('position', 'absolute');
 
   const context = canvas.getContext('2d');
   if (!context) {
@@ -58,12 +52,52 @@ export function renderAreaPip(win: Window, image: CroppedImage): void {
   }
   context.drawImage(image.bitmap, 0, 0);
 
+  const openedAt = Date.now();
+  let baseline: { width: number; height: number } | null = null;
+  let userResized = false;
+
+  function layout(): void {
+    const dpr = win.devicePixelRatio || 1;
+    const availWidth = win.innerWidth;
+    const availHeight = win.innerHeight;
+    if (availWidth <= 0 || availHeight <= 0) return;
+    if (!baseline) baseline = { width: availWidth, height: availHeight };
+
+    const naturalWidth = image.width / dpr;
+    const naturalHeight = image.height / dpr;
+    const fit = Math.min(availWidth / naturalWidth, availHeight / naturalHeight);
+    // 既定では等倍を超えて拡大しない。窓を広げられたときだけ、その操作に従う。
+    const scale = userResized ? fit : Math.min(1, fit);
+
+    const snap = (value: number): number => Math.round(value * dpr) / dpr;
+    const width = snap(naturalWidth * scale);
+    const height = snap(naturalHeight * scale);
+
+    canvas.style.setProperty('width', `${width}px`);
+    canvas.style.setProperty('height', `${height}px`);
+    canvas.style.setProperty('left', `${snap((availWidth - width) / 2)}px`);
+    canvas.style.setProperty('top', `${snap((availHeight - height) / 2)}px`);
+  }
+
+  const onResize = (): void => {
+    const changed =
+      baseline !== null &&
+      (Math.abs(win.innerWidth - baseline.width) > 1 || Math.abs(win.innerHeight - baseline.height) > 1);
+    if (changed && Date.now() - openedAt > RESIZE_GRACE_MS) {
+      userResized = true;
+    }
+    layout();
+  };
+
   const closeButton = createCloseButton(doc, theme, () => pipManager.close());
 
   stage.append(canvas);
   doc.body.append(stage, closeButton);
+  layout();
+  win.addEventListener('resize', onResize);
 
   pipManager.registerCleanup(() => {
+    win.removeEventListener('resize', onResize);
     context.clearRect(0, 0, canvas.width, canvas.height);
     canvas.width = 0;
     canvas.height = 0;

@@ -14,6 +14,21 @@
   "confirmSwitchLabel": {
     "message": "PiPを切り替える前に確認する"
   },
+  "persistentPipLabel": {
+    "message": "タブを閉じてもPiPを残す"
+  },
+  "helperTitle": {
+    "message": "PiP表示の準備ができました"
+  },
+  "helperBody": {
+    "message": "下のボタンでPiPウィンドウを開きます。\nこのウィンドウを閉じるとPiPも閉じます。"
+  },
+  "helperAction": {
+    "message": "PiP表示"
+  },
+  "helperExpired": {
+    "message": "表示する内容が見つかりませんでした。もう一度お試しください。"
+  },
   "textPinHintTitle": {
     "message": "テキストをPiP表示するには"
   },

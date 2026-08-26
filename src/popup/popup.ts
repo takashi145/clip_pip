@@ -3,35 +3,10 @@
  * content script はここで初めて注入する。常時の host permission は不要。
  */
 import { describeFailure, preflightError } from '../shared/failure';
+import { localizeDocument } from '../shared/localize';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import type { StartAreaPinMessage } from '../shared/types';
 import { MessageType, UI_TEXT } from '../shared/types';
-
-/**
- * chrome.i18n は HTML のテキストノードを自動翻訳しないため、data-i18n /
- * data-i18n-lines を振った要素へ起動時に流し込む。lines 版は改行を <br> に
- * 変換する（textContent だと改行がそのまま潰れて表示されるため）。
- */
-function localizeDocument(): void {
-  document.documentElement.lang = chrome.i18n.getUILanguage();
-
-  for (const element of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
-    const key = element.dataset.i18n;
-    if (!key) continue;
-    element.textContent = chrome.i18n.getMessage(key);
-  }
-
-  for (const element of document.querySelectorAll<HTMLElement>('[data-i18n-lines]')) {
-    const key = element.dataset.i18nLines;
-    if (!key) continue;
-    const lines = chrome.i18n.getMessage(key).split('\n');
-    element.replaceChildren();
-    lines.forEach((line, index) => {
-      if (index > 0) element.append(document.createElement('br'));
-      element.append(document.createTextNode(line));
-    });
-  }
-}
 
 localizeDocument();
 
@@ -89,11 +64,18 @@ button?.addEventListener('click', () => {
   });
 });
 
-if (confirmSwitchBox) {
-  void shouldConfirmSwitch().then((value) => {
-    confirmSwitchBox.checked = value;
+function bindToggle(
+  box: HTMLInputElement | null,
+  read: () => Promise<boolean>,
+  write: (value: boolean) => Promise<void>,
+): void {
+  if (!box) return;
+  void read().then((value) => {
+    box.checked = value;
   });
-  confirmSwitchBox.addEventListener('change', () => {
-    void setConfirmSwitch(confirmSwitchBox.checked);
+  box.addEventListener('change', () => {
+    void write(box.checked);
   });
 }
+
+bindToggle(confirmSwitchBox, shouldConfirmSwitch, setConfirmSwitch);

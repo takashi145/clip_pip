@@ -17,6 +17,7 @@ const buildOptions = {
     'service-worker': 'src/background/service-worker.ts',
     content: 'src/content/content.ts',
     popup: 'src/popup/popup.ts',
+    helper: 'src/helper/helper.ts',
   },
   outdir,
   bundle: true,
@@ -35,6 +36,8 @@ async function copyStaticAssets() {
   await cp(path.join(root, 'public'), outdir, { recursive: true });
   await cp(path.join(root, 'src', 'popup', 'popup.html'), path.join(outdir, 'popup.html'));
   await cp(path.join(root, 'src', 'popup', 'popup.css'), path.join(outdir, 'popup.css'));
+  // helper.html は popup.css を共有する
+  await cp(path.join(root, 'src', 'helper', 'helper.html'), path.join(outdir, 'helper.html'));
 }
 
 await rm(outdir, { recursive: true, force: true });

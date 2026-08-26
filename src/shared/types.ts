@@ -19,6 +19,22 @@ export const MessageType = {
   StartTextPin: 'clippip/start-text-pin',
   /** content script -> service worker: 可視タブのキャプチャを要求する */
   CaptureVisibleTab: 'clippip/capture-visible-tab',
+  /** content script -> service worker: 最小化したヘルパーを先に待機させる */
+  PreparePersistentPip: 'clippip/prepare-persistent-pip',
+  /** content script -> helper: 現在のユーザー操作で空の PiP を確保する */
+  ActivatePersistentPip: 'clippip/activate-persistent-pip',
+  /** content script -> helper: 確保済みの PiP へ内容を描画する */
+  RenderPersistentPip: 'clippip/render-persistent-pip',
+  /** content script -> service worker: 自動開始失敗時にヘルパーを表示する */
+  ShowPersistentPipHelper: 'clippip/show-persistent-pip-helper',
+  /** content script -> service worker: ヘルパーウィンドウ経由で PiP を開く */
+  OpenPersistentPip: 'clippip/open-persistent-pip',
+  /** content script -> service worker: ヘルパー経由の PiP が表示中か問い合わせる */
+  QueryPersistentPip: 'clippip/query-persistent-pip',
+  /** content script / helper -> service worker: ヘルパーウィンドウを閉じる */
+  ClosePersistentPip: 'clippip/close-persistent-pip',
+  /** helper -> service worker: PiP を開いたのでヘルパーを最小化する */
+  PersistentPipOpened: 'clippip/persistent-pip-opened',
 } as const;
 
 export interface StartAreaPinMessage {
@@ -46,9 +62,51 @@ export interface Ack {
   error?: string;
 }
 
-/** PiP ウィンドウの初期サイズの目安。 */
+/**
+ * ヘルパーウィンドウに渡す表示内容。ImageBitmap はメッセージにも storage にも
+ * 載せられないため、画像は PNG の data URL にして運ぶ（PNG は可逆なので劣化しない）。
+ */
+export interface AreaPipPayload {
+  kind: 'area';
+  imageDataUrl: string;
+  /** 元ページでの選択範囲。ヘルパー側で窓の初期サイズを決めるのに使う。 */
+  rect: Rect;
+}
+
+export interface TextPipPayload {
+  kind: 'text';
+  text: string;
+}
+
+export type PipPayload = AreaPipPayload | TextPipPayload;
+
+export type PipActivation =
+  | { kind: 'area'; rect: Rect }
+  | { kind: 'text' };
+
+export interface OpenPersistentPipMessage {
+  type: typeof MessageType.OpenPersistentPip;
+  payload: PipPayload;
+}
+
+export interface PersistentPipState {
+  open: boolean;
+}
+
+/**
+ * service worker とヘルパーの受け渡しに使う chrome.storage.session のキー。
+ * session を選ぶのは、ブラウザを閉じたら消えてほしい一時データだから。
+ */
+export const SESSION_KEY = {
+  payload: 'clippip/pip-payload',
+  helperTabId: 'clippip/helper-tab-id',
+  sourceTabId: 'clippip/source-tab-id',
+  /** 旧版の一時ウィンドウ記録を掃除するために残す。 */
+  helperWindowId: 'clippip/helper-window-id',
+} as const;
+
+/** PiP ウィンドウの初期サイズの目安。Area Pin は選択範囲の大きさで開くため最小値のみ使う。 */
 export const PIP_SIZE = {
-  areaWidth: 480,
   textWidth: 400,
   textHeight: 250,
   minWidth: 220,
@@ -121,6 +179,21 @@ export const UI_TEXT = {
   get confirmSwitchLabel(): string {
     return chrome.i18n.getMessage('confirmSwitchLabel');
   },
+  get persistentPipLabel(): string {
+    return chrome.i18n.getMessage('persistentPipLabel');
+  },
+  get helperTitle(): string {
+    return chrome.i18n.getMessage('helperTitle');
+  },
+  get helperBody(): string {
+    return chrome.i18n.getMessage('helperBody');
+  },
+  get helperAction(): string {
+    return chrome.i18n.getMessage('helperAction');
+  },
+  get helperExpired(): string {
+    return chrome.i18n.getMessage('helperExpired');
+  },
   get closeButton(): string {
     return chrome.i18n.getMessage('closeButton');
   },
@@ -135,7 +208,6 @@ export const UI_TEXT = {
   },
 } as const;
 
-/** service worker のバッジタイトル用。プレースホルダー付きメッセージは getMessage の第 2 引数で組み立てる。 */
 export function formatBadgeErrorTitle(message: string): string {
   return chrome.i18n.getMessage('badgeErrorTitle', [message]);
 }

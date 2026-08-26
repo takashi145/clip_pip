@@ -110,6 +110,11 @@ class PipManager {
     return this.win !== null && !this.win.closed;
   }
 
+  /** 開いている PiP ウィンドウ。中身だけ差し替えたいときに使う。 */
+  get current(): Window | null {
+    return this.isOpen ? this.win : null;
+  }
+
   /** requestWindow() は transient activation を要求するため、ユーザー操作の直後に呼ぶこと。 */
   async open(options: PipOptions): Promise<Window> {
     const api = window.documentPictureInPicture;
@@ -150,6 +155,13 @@ class PipManager {
     this.cleanups.push(cleanup);
   }
 
+  /**
+   * ウィンドウは開いたまま、表示中の内容だけ破棄する。
+   */
+  clearContent(): void {
+    this.runCleanups();
+  }
+
   close(): void {
     const win = this.win;
     this.handleClosed();
@@ -159,9 +171,13 @@ class PipManager {
   }
 
   private handleClosed(): void {
+    this.win = null;
+    this.runCleanups();
+  }
+
+  private runCleanups(): void {
     const cleanups = this.cleanups;
     this.cleanups = [];
-    this.win = null;
     for (const cleanup of cleanups) {
       try {
         cleanup();

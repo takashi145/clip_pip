@@ -2,13 +2,10 @@
  * 必要なときだけ注入されるため、同じタブへ複数回注入されうる。
  * リスナーの重複登録をグローバルフラグで防ぐ。
  */
-import { cropCapture } from '../capture/capture';
+import { cropCapture, encodeImage } from '../capture/capture';
 import type { CroppedImage } from '../capture/capture';
-import { areaPipSize, renderAreaPip } from '../pip/area-pip';
-import type { PipOptions } from '../pip/pip-manager';
 import { isDocumentPipSupported, pipManager } from '../pip/pip-manager';
-import { renderTextPip, textPipSize } from '../pip/text-pip';
-import type { Ack, CaptureResult, ContentMessage } from '../shared/types';
+import type { Ack, CaptureResult, ContentMessage, PersistentPipState, PipPayload } from '../shared/types';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import { MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
@@ -269,18 +266,76 @@ function confirmSwitch(): Promise<{ confirmed: boolean; dontAskAgain: boolean }>
   });
 }
 
+/** ヘルパーウィンドウ経由の PiP は別ウィンドウにあるので、service worker に聞く。 */
+async function isPersistentPipOpen(): Promise<boolean> {
+  try {
+    const state = (await chrome.runtime.sendMessage({
+      type: MessageType.QueryPersistentPip,
+    })) as PersistentPipState | undefined;
+    return state?.open === true;
+  } catch (error) {
+    console.warn('[ClipPiP] failed to query the persistent PiP', error);
+    return false;
+  }
+}
+
+async function closePersistentPip(): Promise<void> {
+  try {
+    await chrome.runtime.sendMessage({ type: MessageType.ClosePersistentPip });
+  } catch (error) {
+    console.warn('[ClipPiP] failed to close the persistent PiP', error);
+  }
+}
+
+async function sendPersistentCommand(message: object): Promise<Ack> {
+  const ack = (await chrome.runtime.sendMessage(message)) as Ack | undefined;
+  return ack ?? { ok: false, error: 'no response from the extension' };
+}
+
+async function preparePersistentPip(): Promise<void> {
+  const ack = await sendPersistentCommand({ type: MessageType.PreparePersistentPip });
+  if (!ack.ok) throw new Error(ack.error ?? 'failed to prepare the helper window');
+}
+
+async function activatePersistentPip(activation: object): Promise<Ack> {
+  return sendPersistentCommand({
+    type: MessageType.ActivatePersistentPip,
+    activation,
+  });
+}
+
+async function renderPersistentPip(payload: PipPayload): Promise<Ack> {
+  return sendPersistentCommand({
+    type: MessageType.RenderPersistentPip,
+    payload,
+  });
+}
+
+async function showPersistentPipHelper(): Promise<void> {
+  await chrome.runtime.sendMessage({ type: MessageType.ShowPersistentPipHelper });
+}
+
 /**
  * 既に PiP が開いていれば、切り替えてよいか確認する。
  * 選択やキャプチャに入る前に呼ぶこと。キャンセル時の手戻りを無くすため。
+ *
+ * ここで承諾された時点でヘルパー側の PiP は閉じてしまう。PiP を開く直前まで
+ * 残すと、requestWindow() の直前に待ちが入って activation を失いやすいため。
  */
 async function allowSwitch(): Promise<boolean> {
-  if (!pipManager.isOpen) return true;
-  if (!(await shouldConfirmSwitch())) return true;
+  const persistentOpen = await isPersistentPipOpen();
 
-  const { confirmed, dontAskAgain } = await confirmSwitch();
-  // 「次回から確認しない」は、切り替えを承諾した場合だけ保存する
-  if (confirmed && dontAskAgain) await setConfirmSwitch(false);
-  return confirmed;
+  if (pipManager.isOpen || persistentOpen) {
+    if (await shouldConfirmSwitch()) {
+      const { confirmed, dontAskAgain } = await confirmSwitch();
+      if (!confirmed) return false;
+      // 「次回から確認しない」は、切り替えを承諾した場合だけ保存する
+      if (dontAskAgain) await setConfirmSwitch(false);
+    }
+  }
+
+  if (persistentOpen) await closePersistentPip();
+  return true;
 }
 
 /** 次の描画フレームを待つ。 */
@@ -307,39 +362,6 @@ async function requestCapture(): Promise<string> {
  * ユーザー操作が引き継がれない場合は、トーストのボタンで操作を受け直して再試行する。
  * ユーザーが操作しなかった場合は null。
  */
-async function openPipWithActivationFallback(options: PipOptions): Promise<Window | null> {
-  try {
-    return await pipManager.open(options);
-  } catch (error) {
-    console.warn('[ClipPiP] requestWindow failed, asking for a user gesture', error);
-  }
-
-  const granted = await new Promise<boolean>((resolve) => {
-    const toast = showToast(UI_TEXT.activationPrompt, {
-      timeoutMs: 15000,
-      action: {
-        label: UI_TEXT.activationAction,
-        onClick: () => {
-          toast.dismiss();
-          resolve(true);
-        },
-      },
-    });
-    window.setTimeout(() => resolve(false), 15000);
-  });
-
-  if (!granted) return null;
-
-  try {
-    // クリックハンドラ直後のマイクロタスクなので activation は有効
-    return await pipManager.open(options);
-  } catch (error) {
-    console.error('[ClipPiP] failed to open the PiP window', error);
-    showToast(UI_TEXT.pipFailed);
-    return null;
-  }
-}
-
 let running = false;
 
 async function runAreaPin(): Promise<void> {
@@ -350,8 +372,22 @@ async function runAreaPin(): Promise<void> {
 
   if (!(await allowSwitch())) return;
 
+  try {
+    await preparePersistentPip();
+  } catch (error) {
+    console.error('[ClipPiP] failed to prepare the helper window', error);
+    showToast(UI_TEXT.pipFailed);
+    return;
+  }
+
   const rect = await selectArea();
-  if (!rect) return;
+  if (!rect) {
+    await closePersistentPip();
+    return;
+  }
+
+  // pointerup の transient activation が残っている間に、待機中の helper へ渡す。
+  const activation = await activatePersistentPip({ kind: 'area', rect });
 
   const viewport = { width: window.innerWidth, height: window.innerHeight };
 
@@ -365,23 +401,21 @@ async function runAreaPin(): Promise<void> {
     cropped = await cropCapture(dataUrl, rect, viewport);
   } catch (error) {
     console.error('[ClipPiP] capture failed', error);
+    await closePersistentPip();
     showToast(UI_TEXT.captureFailed);
     return;
   }
 
-  const win = await openPipWithActivationFallback(areaPipSize(rect));
-  if (!win) {
-    cropped.dispose();
-    return;
-  }
-
+  pipManager.close();
   try {
-    renderAreaPip(win, cropped);
+    const imageDataUrl = await encodeImage(cropped);
+    const rendered = await renderPersistentPip({ kind: 'area', imageDataUrl, rect });
+    if (!activation.ok || !rendered.ok) await showPersistentPipHelper();
   } catch (error) {
-    console.error('[ClipPiP] failed to render the Area PiP', error);
-    pipManager.close();
-    cropped.dispose();
+    console.error('[ClipPiP] failed to hand the capture to the helper window', error);
     showToast(UI_TEXT.pipFailed);
+  } finally {
+    cropped.dispose();
   }
 }
 
@@ -399,14 +433,14 @@ async function runTextPin(fallbackText: string): Promise<void> {
 
   if (!(await allowSwitch())) return;
 
-  const win = await openPipWithActivationFallback(textPipSize());
-  if (!win) return;
-
+  pipManager.close();
   try {
-    renderTextPip(win, text);
+    await preparePersistentPip();
+    const activation = await activatePersistentPip({ kind: 'text' });
+    const rendered = await renderPersistentPip({ kind: 'text', text });
+    if (!activation.ok || !rendered.ok) await showPersistentPipHelper();
   } catch (error) {
-    console.error('[ClipPiP] failed to render the Text PiP', error);
-    pipManager.close();
+    console.error('[ClipPiP] failed to hand the text to the helper window', error);
     showToast(UI_TEXT.pipFailed);
   }
 }

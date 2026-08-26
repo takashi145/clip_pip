@@ -14,6 +14,21 @@
   "confirmSwitchLabel": {
     "message": "Confirm before switching PiP"
   },
+  "persistentPipLabel": {
+    "message": "Keep PiP open after closing the tab"
+  },
+  "helperTitle": {
+    "message": "Ready to show in PiP"
+  },
+  "helperBody": {
+    "message": "Use the button below to open the PiP window.\nClosing this window also closes the PiP."
+  },
+  "helperAction": {
+    "message": "Show PiP"
+  },
+  "helperExpired": {
+    "message": "Couldn't find anything to show. Please try again."
+  },
   "textPinHintTitle": {
     "message": "To pin selected text"
   },
