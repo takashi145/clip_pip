@@ -14,6 +14,11 @@
 	"background": {
 		"service_worker": "service-worker.js"
 	},
+	"commands": {
+		"start-area-pin": {
+			"description": "__MSG_contextMenuAreaPin__"
+		}
+	},
 	"action": {
 		"default_title": "ClipPiP",
 		"default_popup": "popup.html",
