@@ -7,7 +7,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:i18n": "node scripts/check-locales.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",
