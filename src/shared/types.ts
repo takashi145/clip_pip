@@ -194,8 +194,8 @@ export const UI_TEXT = {
   get helperExpired(): string {
     return chrome.i18n.getMessage('helperExpired');
   },
-  get closeButton(): string {
-    return chrome.i18n.getMessage('closeButton');
+  get returnToTab(): string {
+    return chrome.i18n.getMessage('returnToTab');
   },
   get contextMenuAreaPin(): string {
     return chrome.i18n.getMessage('contextMenuAreaPin');

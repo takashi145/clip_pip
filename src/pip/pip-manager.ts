@@ -71,11 +71,18 @@ export function getPipTheme(win: Window): PipTheme {
   }
 }
 
-export function createCloseButton(doc: Document, theme: PipTheme, onClose: () => void): HTMLButtonElement {
+/** PiP の右上に並べる操作ボタン 1 つぶん。 */
+export interface PipControl {
+  /** 描画後に DOM を引き当てるための印。data-clippip-control に入る。 */
+  id?: string;
+  glyph: string;
+  label: string;
+  onClick(): void;
+}
+
+export function createPipButton(doc: Document, theme: PipTheme, control: PipControl): HTMLButtonElement {
   const button = createElement(doc, 'button', {
-    position: 'absolute',
-    top: '8px',
-    right: '8px',
+    flex: '0 0 auto',
     width: '28px',
     height: '28px',
     display: 'flex',
@@ -88,18 +95,36 @@ export function createCloseButton(doc: Document, theme: PipTheme, onClose: () =>
     color: theme.text,
     font: `600 15px/1 ${FONT_STACK}`,
     cursor: 'pointer',
-    zIndex: '10',
     transition: 'opacity 120ms ease',
     opacity: '0.72',
   });
   button.type = 'button';
-  button.textContent = '×';
-  button.title = UI_TEXT.closeButton;
-  button.setAttribute('aria-label', UI_TEXT.closeButton);
+  if (control.id) button.dataset.clippipControl = control.id;
+  button.textContent = control.glyph;
+  button.title = control.label;
+  button.setAttribute('aria-label', control.label);
   button.addEventListener('mouseenter', () => button.style.setProperty('opacity', '1'));
   button.addEventListener('mouseleave', () => button.style.setProperty('opacity', '0.72'));
-  button.addEventListener('click', onClose);
+  button.addEventListener('click', control.onClick);
   return button;
+}
+
+export function createPipControls(
+  doc: Document,
+  theme: PipTheme,
+  controls: PipControl[],
+): HTMLElement {
+  const container = createElement(doc, 'div', {
+    position: 'absolute',
+    top: '8px',
+    left: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    zIndex: '10',
+  });
+  container.append(...controls.map((control) => createPipButton(doc, theme, control)));
+  return container;
 }
 
 class PipManager {
@@ -127,6 +152,7 @@ class PipManager {
     const win = await api.requestWindow({
       width: Math.round(options.width),
       height: Math.round(options.height),
+      disallowReturnToOpener: true,
     });
 
     this.win = win;
