@@ -35,6 +35,15 @@
   "textPinHintBody": {
     "message": "ページ上でテキストを選択して右クリックし、\n「選択テキストをPiP表示」を選びます。"
   },
+  "shortcutHintTitle": {
+    "message": "ショートカットキー"
+  },
+  "shortcutHintBody": {
+    "message": "既定では未設定です。\nchrome://extensions/shortcuts で登録できます。"
+  },
+  "shortcutAction": {
+    "message": "ショートカットを設定"
+  },
   "pipUnsupported": {
     "message": "このブラウザではPicture-in-Picture表示に対応していません。"
   },
