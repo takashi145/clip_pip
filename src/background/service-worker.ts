@@ -4,6 +4,7 @@
  * ツールチップで理由を伝える。notifications 権限を増やさずに済ませるための選択。
  */
 import { describeFailure, preflightError } from '../shared/failure';
+import { hasTabCapture } from '../shared/permissions';
 import { focusSourceTab } from '../shared/source-tab';
 import type {
   Ack,
@@ -56,6 +57,11 @@ function registerContextMenus(): void {
 chrome.runtime.onInstalled.addListener(registerContextMenus);
 chrome.runtime.onStartup.addListener(registerContextMenus);
 
+// 動いているワーカーは新しい権限を認識しないみたいなので、拡張機能ごと入れ直す
+chrome.permissions.onAdded.addListener(() => {
+  chrome.runtime.reload();
+});
+
 async function clearBadge(tabId: number): Promise<void> {
   try {
     await chrome.action.setBadgeText({ tabId, text: '' });
@@ -102,6 +108,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (tabId === undefined || !message) return;
 
   await clearBadge(tabId);
+
+  // permissions.request() は拡張機能のページからしか呼べないので、ここでは案内だけ出す
+  if (message.type === MessageType.StartLivePin && !(await hasTabCapture())) {
+    await reportFailure(tabId, UI_TEXT.liveNeedsPermission);
+    return;
+  }
 
   const url = tab?.url ?? tab?.pendingUrl ?? '';
   const preflight = preflightError(url);

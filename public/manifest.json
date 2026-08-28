@@ -9,7 +9,9 @@
 		"activeTab",
 		"contextMenus",
 		"scripting",
-		"storage",
+		"storage"
+	],
+	"optional_permissions": [
 		"tabCapture"
 	],
 	"background": {

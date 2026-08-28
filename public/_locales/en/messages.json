@@ -124,5 +124,11 @@
   },
   "liveEnded": {
     "message": "The source tab was closed, so the video ended."
+  },
+  "liveNeedsPermission": {
+    "message": "Live view needs permission. Use \"Select a live area\" from the toolbar icon once."
+  },
+  "liveGranted": {
+    "message": "Permission granted. Press \"Select a live area\" once more."
   }
 }

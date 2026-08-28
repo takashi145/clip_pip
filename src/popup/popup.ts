@@ -4,6 +4,7 @@
  */
 import { describeFailure, preflightError } from '../shared/failure';
 import { localizeDocument } from '../shared/localize';
+import { hasTabCapture, requestTabCapture } from '../shared/permissions';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import type { ContentMessage } from '../shared/types';
 import { MessageType, UI_TEXT } from '../shared/types';
@@ -55,17 +56,48 @@ async function start(message: ContentMessage): Promise<void> {
   window.close();
 }
 
-function bindStart(button: HTMLButtonElement | null, message: ContentMessage): void {
+/**
+ * 権限を付与すると Chrome が拡張機能のコンテキストを作り直し、その巻き添えで
+ * ヘルパータブごと PiP が閉じる。初回の許可だけ受け取って、実行は次の操作に回す。
+ */
+let hadTabCapture = false;
+void hasTabCapture().then((granted) => {
+  hadTabCapture = granted;
+});
+
+async function prepareLivePin(): Promise<boolean> {
+  clearError();
+  const granted = await requestTabCapture();
+  if (!granted) {
+    showError(UI_TEXT.liveNeedsPermission);
+    return false;
+  }
+  if (!hadTabCapture) {
+    hadTabCapture = true;
+    showError(UI_TEXT.liveGranted);
+    return false;
+  }
+  return true;
+}
+
+function bindStart(
+  button: HTMLButtonElement | null,
+  message: ContentMessage,
+  before?: () => Promise<boolean>,
+): void {
   button?.addEventListener('click', () => {
     button.disabled = true;
-    void start(message).finally(() => {
+    void (async () => {
+      if (before && !(await before())) return;
+      await start(message);
+    })().finally(() => {
       button.disabled = false;
     });
   });
 }
 
 bindStart(areaButton, { type: MessageType.StartAreaPin });
-bindStart(liveButton, { type: MessageType.StartLivePin });
+bindStart(liveButton, { type: MessageType.StartLivePin }, prepareLivePin);
 
 function bindToggle(
   box: HTMLInputElement | null,

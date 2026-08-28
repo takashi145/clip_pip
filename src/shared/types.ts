@@ -237,6 +237,12 @@ export const UI_TEXT = {
   get liveEnded(): string {
     return chrome.i18n.getMessage('liveEnded');
   },
+  get liveNeedsPermission(): string {
+    return chrome.i18n.getMessage('liveNeedsPermission');
+  },
+  get liveGranted(): string {
+    return chrome.i18n.getMessage('liveGranted');
+  },
   get badgeDefaultTitle(): string {
     return chrome.i18n.getMessage('badgeDefaultTitle');
   },
