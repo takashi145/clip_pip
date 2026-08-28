@@ -6,12 +6,13 @@
 import { decodeImage } from '../capture/capture';
 import type { CroppedImage } from '../capture/capture';
 import { areaPipSize, renderAreaPip } from '../pip/area-pip';
+import { renderLivePip } from '../pip/live-pip';
 import type { PipControl } from '../pip/pip-manager';
 import { pipManager } from '../pip/pip-manager';
 import { renderTextPip, textPipSize } from '../pip/text-pip';
 import { localizeDocument } from '../shared/localize';
 import { focusSourceTab, getSourceTabId, isSourceTabAlive } from '../shared/source-tab';
-import type { Ack, PipActivation, PipPayload } from '../shared/types';
+import type { Ack, LivePipPayload, PipActivation, PipPayload } from '../shared/types';
 import { MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 localizeDocument();
@@ -73,6 +74,18 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   removeReturnButton();
 });
 
+/** ID の consumer はこのタブに固定されているので、映像に変換できるのはここだけ。 */
+async function openTabStream(payload: LivePipPayload): Promise<MediaStream> {
+  return await navigator.mediaDevices.getUserMedia({
+    video: {
+      mandatory: {
+        chromeMediaSource: 'tab',
+        chromeMediaSourceId: payload.streamId,
+      },
+    },
+  } as MediaStreamConstraints);
+}
+
 async function renderPayload(
   win: Window,
   payload: PipPayload,
@@ -84,9 +97,16 @@ async function renderPayload(
     if (!image) throw new Error('the image is not available');
     pendingImage = null;
     renderAreaPip(win, image, controls);
-  } else {
-    renderTextPip(win, payload.text, controls);
+    return;
   }
+
+  if (payload.kind === 'live') {
+    const stream = await openTabStream(payload);
+    renderLivePip(win, stream, { rect: payload.rect, viewport: payload.viewport, controls });
+    return;
+  }
+
+  renderTextPip(win, payload.text, controls);
 }
 
 function showFallback(): void {
@@ -105,7 +125,7 @@ function activatePip(activation: PipActivation, sendResponse: (response: Ack) =>
   }
   opening = true;
 
-  const size = activation.kind === 'area' ? areaPipSize(activation.rect) : textPipSize();
+  const size = activation.kind === 'text' ? textPipSize() : areaPipSize(activation.rect);
   pipManager
     .open(size)
     .then(() => {
@@ -124,7 +144,10 @@ function activatePip(activation: PipActivation, sendResponse: (response: Ack) =>
 
 async function receivePayload(payload: PipPayload): Promise<Ack> {
   pendingPayload = payload;
-  await chrome.storage.session.set({ [SESSION_KEY.payload]: payload });
+  // ストリーム ID は一度きりなので保存しない。復元しても映像には変換できない。
+  if (payload.kind !== 'live') {
+    await chrome.storage.session.set({ [SESSION_KEY.payload]: payload });
+  }
 
   if (payload.kind === 'area') {
     try {
@@ -144,6 +167,10 @@ async function receivePayload(payload: PipPayload): Promise<Ack> {
     } catch (error) {
       console.error('[ClipPiP] failed to render the PiP', error);
       pipManager.close();
+      if (payload.kind === 'live') {
+        showStatus(UI_TEXT.liveCaptureFailed);
+        return { ok: false, error: 'failed to open the tab stream' };
+      }
     }
   }
 
@@ -158,7 +185,7 @@ button?.addEventListener('click', () => {
   button.disabled = true;
   const payload = pendingPayload;
   const image = pendingImage;
-  const size = payload.kind === 'area' ? areaPipSize(payload.rect) : textPipSize();
+  const size = payload.kind === 'text' ? textPipSize() : areaPipSize(payload.rect);
 
   pipManager
     .open(size)

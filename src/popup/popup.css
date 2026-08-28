@@ -112,6 +112,28 @@ body.helper {
   cursor: default;
 }
 
+.secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 600 13px/1.2 inherit;
+  cursor: pointer;
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .error {
   margin: 10px 0 0;
   color: var(--danger);

@@ -5,7 +5,14 @@
 import { cropCapture, encodeImage } from '../capture/capture';
 import type { CroppedImage } from '../capture/capture';
 import { isDocumentPipSupported, pipManager } from '../pip/pip-manager';
-import type { Ack, CaptureResult, ContentMessage, PersistentPipState, PipPayload } from '../shared/types';
+import type {
+  Ack,
+  CaptureResult,
+  ContentMessage,
+  PersistentPipState,
+  PipPayload,
+  TabStreamResult,
+} from '../shared/types';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
 import { MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
@@ -343,6 +350,16 @@ function nextPaint(): Promise<void> {
   return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
+async function requestTabStream(): Promise<string> {
+  const result = (await chrome.runtime.sendMessage({
+    type: MessageType.RequestTabStream,
+  })) as TabStreamResult | undefined;
+
+  if (!result) throw new Error('no response from the service worker');
+  if (!result.ok) throw new Error(result.error);
+  return result.streamId;
+}
+
 async function requestCapture(): Promise<string> {
   const result = (await chrome.runtime.sendMessage({
     type: MessageType.CaptureVisibleTab,
@@ -419,6 +436,58 @@ async function runAreaPin(): Promise<void> {
   }
 }
 
+/** Live Pin。映像の供給源が元タブなので、閉じるとそこで止まる。 */
+async function runLivePin(): Promise<void> {
+  if (!isDocumentPipSupported()) {
+    showToast(UI_TEXT.pipUnsupported);
+    return;
+  }
+
+  if (!(await allowSwitch())) return;
+
+  try {
+    // ストリーム ID の consumer に指定するため、先にヘルパーを用意しておく
+    await preparePersistentPip();
+  } catch (error) {
+    console.error('[ClipPiP] failed to prepare the helper window', error);
+    showToast(UI_TEXT.pipFailed);
+    return;
+  }
+
+  const rect = await selectArea();
+  if (!rect) {
+    await closePersistentPip();
+    return;
+  }
+
+  const activation = await activatePersistentPip({ kind: 'live', rect });
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+
+  let streamId: string;
+  try {
+    streamId = await requestTabStream();
+  } catch (error) {
+    console.error('[ClipPiP] failed to obtain the tab stream', error);
+    await closePersistentPip();
+    showToast(UI_TEXT.liveCaptureFailed);
+    return;
+  }
+
+  pipManager.close();
+  try {
+    const rendered = await renderPersistentPip({ kind: 'live', streamId, rect, viewport });
+    if (!rendered.ok) {
+      await closePersistentPip();
+      showToast(UI_TEXT.liveCaptureFailed);
+      return;
+    }
+    if (!activation.ok) await showPersistentPipHelper();
+  } catch (error) {
+    console.error('[ClipPiP] failed to hand the stream to the helper window', error);
+    showToast(UI_TEXT.liveCaptureFailed);
+  }
+}
+
 async function runTextPin(fallbackText: string): Promise<void> {
   if (!isDocumentPipSupported()) {
     showToast(UI_TEXT.pipUnsupported);
@@ -456,6 +525,9 @@ async function handleMessage(message: ContentMessage): Promise<void> {
       case MessageType.StartAreaPin:
         await runAreaPin();
         break;
+      case MessageType.StartLivePin:
+        await runLivePin();
+        break;
       case MessageType.StartTextPin:
         await runTextPin(message.fallbackText);
         break;
@@ -470,8 +542,14 @@ const globalScope = globalThis as Record<string, unknown>;
 if (!globalScope[LOADED_FLAG]) {
   globalScope[LOADED_FLAG] = true;
 
+  const HANDLED: ReadonlySet<string> = new Set<string>([
+    MessageType.StartAreaPin,
+    MessageType.StartLivePin,
+    MessageType.StartTextPin,
+  ]);
+
   chrome.runtime.onMessage.addListener((message: ContentMessage, _sender, sendResponse) => {
-    if (message?.type !== MessageType.StartAreaPin && message?.type !== MessageType.StartTextPin) {
+    if (!HANDLED.has(message?.type)) {
       return false;
     }
     // popup は即座に閉じるため、処理を待たず受領だけ返す

@@ -5,11 +5,18 @@
  */
 import { describeFailure, preflightError } from '../shared/failure';
 import { focusSourceTab } from '../shared/source-tab';
-import type { Ack, CaptureResult, ContentMessage, PersistentPipState } from '../shared/types';
+import type {
+  Ack,
+  CaptureResult,
+  ContentMessage,
+  PersistentPipState,
+  TabStreamResult,
+} from '../shared/types';
 import { formatBadgeErrorTitle, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 const MENU_ID = {
   areaPin: 'clippip/area-pin',
+  livePin: 'clippip/live-pin',
   textPin: 'clippip/text-pin',
 } as const;
 
@@ -31,6 +38,11 @@ function registerContextMenus(): void {
     chrome.contextMenus.create({
       id: MENU_ID.areaPin,
       title: UI_TEXT.contextMenuAreaPin,
+      contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
+    });
+    chrome.contextMenus.create({
+      id: MENU_ID.livePin,
+      title: UI_TEXT.contextMenuLivePin,
       contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
     });
     chrome.contextMenus.create({
@@ -73,6 +85,9 @@ function toContentMessage(info: chrome.contextMenus.OnClickData): ContentMessage
   if (info.menuItemId === MENU_ID.areaPin) {
     return { type: MessageType.StartAreaPin };
   }
+  if (info.menuItemId === MENU_ID.livePin) {
+    return { type: MessageType.StartLivePin };
+  }
   if (info.menuItemId === MENU_ID.textPin) {
     const fallbackText = info.selectionText ?? '';
     if (fallbackText.trim().length === 0) return null;
@@ -114,6 +129,37 @@ async function captureVisibleTab(sender: chrome.runtime.MessageSender): Promise<
     const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
     return { ok: true, dataUrl };
   } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+/** Live Pin 用のストリーム ID。拡張機能のページからは発行できないので、ここで作る。 */
+async function requestTabStream(sender: chrome.runtime.MessageSender): Promise<TabStreamResult> {
+  const targetTabId = sender.tab?.id;
+  if (targetTabId === undefined) {
+    return { ok: false, error: 'sender tab is unknown' };
+  }
+
+  const consumerTabId = await helperTabId();
+  if (consumerTabId === null) {
+    return { ok: false, error: 'helper tab is not ready' };
+  }
+  // 未許可だと chrome.tabCapture 自体が存在しない
+  if (!chrome.tabCapture?.getMediaStreamId) {
+    return { ok: false, error: 'chrome.tabCapture is unavailable in this worker' };
+  }
+
+  try {
+    const streamId = await new Promise<string>((resolve, reject) => {
+      chrome.tabCapture.getMediaStreamId({ targetTabId, consumerTabId }, (id) => {
+        const failure = chrome.runtime.lastError;
+        if (failure) reject(new Error(failure.message ?? 'failed to get a media stream id'));
+        else resolve(id);
+      });
+    });
+    return { ok: true, streamId };
+  } catch (error) {
+    console.error('[ClipPiP] failed to issue a tab stream id', error);
     return { ok: false, error: toErrorMessage(error) };
   }
 }
@@ -259,6 +305,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
     case MessageType.CaptureVisibleTab:
       void captureVisibleTab(sender).then(sendResponse);
+      break;
+    case MessageType.RequestTabStream:
+      void requestTabStream(sender).then(sendResponse);
       break;
     case MessageType.PreparePersistentPip:
       void prepareHelper(sender).then(sendResponse);

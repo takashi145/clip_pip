@@ -15,10 +15,14 @@ export interface Viewport {
 export const MessageType = {
   /** popup -> content script: Area Pin モードを開始する */
   StartAreaPin: 'clippip/start-area-pin',
+  /** popup / service worker -> content script: Live Pin モードを開始する */
+  StartLivePin: 'clippip/start-live-pin',
   /** service worker -> content script: Text Pin を実行する */
   StartTextPin: 'clippip/start-text-pin',
   /** content script -> service worker: 可視タブのキャプチャを要求する */
   CaptureVisibleTab: 'clippip/capture-visible-tab',
+  /** content script -> service worker: 元タブの映像ストリーム ID を要求する */
+  RequestTabStream: 'clippip/request-tab-stream',
   /** content script -> service worker: 最小化したヘルパーを先に待機させる */
   PreparePersistentPip: 'clippip/prepare-persistent-pip',
   /** content script -> helper: 現在のユーザー操作で空の PiP を確保する */
@@ -47,7 +51,11 @@ export interface StartTextPinMessage {
   fallbackText: string;
 }
 
-export type ContentMessage = StartAreaPinMessage | StartTextPinMessage;
+export interface StartLivePinMessage {
+  type: typeof MessageType.StartLivePin;
+}
+
+export type ContentMessage = StartAreaPinMessage | StartTextPinMessage | StartLivePinMessage;
 
 export interface CaptureVisibleTabMessage {
   type: typeof MessageType.CaptureVisibleTab;
@@ -55,6 +63,10 @@ export interface CaptureVisibleTabMessage {
 
 export type CaptureResult =
   | { ok: true; dataUrl: string }
+  | { ok: false; error: string };
+
+export type TabStreamResult =
+  | { ok: true; streamId: string }
   | { ok: false; error: string };
 
 export interface Ack {
@@ -78,10 +90,21 @@ export interface TextPipPayload {
   text: string;
 }
 
-export type PipPayload = AreaPipPayload | TextPipPayload;
+/** Live Pin。ストリーム ID を映像に変換できるのは consumer に指定されたヘルパーだけ。 */
+export interface LivePipPayload {
+  kind: 'live';
+  streamId: string;
+  /** 元ページでの選択範囲（CSS ピクセル）。 */
+  rect: Rect;
+  /** 切り出し位置を映像の解像度へ換算するために使う。 */
+  viewport: Viewport;
+}
+
+export type PipPayload = AreaPipPayload | TextPipPayload | LivePipPayload;
 
 export type PipActivation =
   | { kind: 'area'; rect: Rect }
+  | { kind: 'live'; rect: Rect }
   | { kind: 'text' };
 
 export interface OpenPersistentPipMessage {
@@ -202,6 +225,15 @@ export const UI_TEXT = {
   },
   get contextMenuTextPin(): string {
     return chrome.i18n.getMessage('contextMenuTextPin');
+  },
+  get contextMenuLivePin(): string {
+    return chrome.i18n.getMessage('contextMenuLivePin');
+  },
+  get liveCaptureFailed(): string {
+    return chrome.i18n.getMessage('liveCaptureFailed');
+  },
+  get liveEnded(): string {
+    return chrome.i18n.getMessage('liveEnded');
   },
   get badgeDefaultTitle(): string {
     return chrome.i18n.getMessage('badgeDefaultTitle');

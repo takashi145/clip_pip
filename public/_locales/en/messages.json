@@ -112,5 +112,17 @@
         "example": "ClipPiP can't be used on this page."
       }
     }
+  },
+  "livePinButton": {
+    "message": "Select a live area"
+  },
+  "contextMenuLivePin": {
+    "message": "Select an area to pin live to PiP"
+  },
+  "liveCaptureFailed": {
+    "message": "Live view couldn't be started on this page."
+  },
+  "liveEnded": {
+    "message": "The source tab was closed, so the video ended."
   }
 }

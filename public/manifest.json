@@ -9,7 +9,8 @@
 		"activeTab",
 		"contextMenus",
 		"scripting",
-		"storage"
+		"storage",
+		"tabCapture"
 	],
 	"background": {
 		"service_worker": "service-worker.js"
