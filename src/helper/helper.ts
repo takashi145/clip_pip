@@ -74,13 +74,31 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   removeReturnButton();
 });
 
+// 元タブの実描画画素数に上限を合わせる。超えて受け取っても等倍表示では捨てるだけ
+const CAPTURE_HEADROOM = 1;
+const CAPTURE_FRAME_RATE = 30;
+
+function captureLimit(payload: LivePipPayload): { width: number; height: number } {
+  const dpr = payload.dpr > 0 ? payload.dpr : 1;
+  return {
+    width: Math.round(payload.viewport.width * dpr * CAPTURE_HEADROOM),
+    height: Math.round(payload.viewport.height * dpr * CAPTURE_HEADROOM),
+  };
+}
+
 /** ID の consumer はこのタブに固定されているので、映像に変換できるのはここだけ。 */
 async function openTabStream(payload: LivePipPayload): Promise<MediaStream> {
+  const { streamId } = payload;
+  const { width: maxWidth, height: maxHeight } = captureLimit(payload);
+
   return await navigator.mediaDevices.getUserMedia({
     video: {
       mandatory: {
         chromeMediaSource: 'tab',
-        chromeMediaSourceId: payload.streamId,
+        chromeMediaSourceId: streamId,
+        maxWidth,
+        maxHeight,
+        maxFrameRate: CAPTURE_FRAME_RATE,
       },
     },
   } as MediaStreamConstraints);

@@ -462,6 +462,7 @@ async function runLivePin(): Promise<void> {
 
   const activation = await activatePersistentPip({ kind: 'live', rect });
   const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const dpr = window.devicePixelRatio || 1;
 
   let streamId: string;
   try {
@@ -475,7 +476,7 @@ async function runLivePin(): Promise<void> {
 
   pipManager.close();
   try {
-    const rendered = await renderPersistentPip({ kind: 'live', streamId, rect, viewport });
+    const rendered = await renderPersistentPip({ kind: 'live', streamId, rect, viewport, dpr });
     if (!rendered.ok) {
       await closePersistentPip();
       showToast(UI_TEXT.liveCaptureFailed);

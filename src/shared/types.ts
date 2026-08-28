@@ -98,6 +98,8 @@ export interface LivePipPayload {
   rect: Rect;
   /** 切り出し位置を映像の解像度へ換算するために使う。 */
   viewport: Viewport;
+  /** キャプチャ解像度の上限を決めるのに使う。 */
+  dpr: number;
 }
 
 export type PipPayload = AreaPipPayload | TextPipPayload | LivePipPayload;
