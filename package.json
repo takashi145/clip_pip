@@ -1,6 +1,6 @@
 {
   "name": "clippip",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "選択範囲・選択テキストを常時最前面のPicture-in-Pictureで一時表示するChrome拡張",
   "type": "module",
