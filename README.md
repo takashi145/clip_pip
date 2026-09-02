@@ -1,12 +1,10 @@
 # clip_pip
 
-A Chrome extension that temporarily shows a selected region or selected text in a
-Picture-in-Picture window. Nothing is saved — close it and it's gone.
+A Chrome extension that temporarily shows a selected region or selected text in a Picture-in-Picture window.
 
 ## Features
 
-- **Area Pin** — drag-select a rectangle on the page and show that screenshot in PiP.
+- **Area Pin** — drag-select a region on the page and show that screenshot in PiP.
+- **Live Pin** — drag-select a region and show it as live video that keeps up with the page. Unlike the other two, it ends when you close the source tab. It uses the `tabCapture` permission, which is optional and asked for the first time you use it.
 - **Text Pin** — select text, right-click, and show it in PiP as plain text.
-- Starts from the toolbar popup or the right-click context menu.
-- Only one Document PiP can be open at a time, so opening a new one closes the existing PiP. Confirming before it closes can be enabled in the popup (off by default).
-- Captured images and text are never sent anywhere. They are held in browser memory (`chrome.storage.session`) to hand off to the PiP window and are gone once the browser closes. Only the preference is written to disk.
+- Starts from the toolbar popup, the right-click context menu, or a keyboard shortcut (none is assigned by default).
