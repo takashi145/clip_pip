@@ -15,6 +15,9 @@ const areaButton = document.getElementById('area-pin') as HTMLButtonElement | nu
 const liveButton = document.getElementById('live-pin') as HTMLButtonElement | null;
 const errorBox = document.getElementById('error') as HTMLParagraphElement | null;
 const confirmSwitchBox = document.getElementById('confirm-switch') as HTMLInputElement | null;
+const shortcutsButton = document.getElementById('open-shortcuts') as HTMLButtonElement | null;
+
+const SHORTCUTS_URL = 'chrome://extensions/shortcuts';
 
 function showError(message: string): void {
   if (!errorBox) return;
@@ -98,3 +101,11 @@ function bindToggle(
 }
 
 bindToggle(confirmSwitchBox, shouldConfirmSwitch, setConfirmSwitch);
+
+shortcutsButton?.addEventListener('click', () => {
+  chrome.tabs
+    .create({ url: SHORTCUTS_URL })
+    .then(() => window.close())
+    // 開けなかった場合も案内文に URL が載っているので、ここでは黙って諦める
+    .catch((error: unknown) => console.warn('[ClipPiP] failed to open the shortcuts page', error));
+});

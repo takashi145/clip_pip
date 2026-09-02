@@ -15,6 +15,11 @@ const MENU_ID = {
   textPin: 'clippip/text-pin',
 } as const;
 
+// manifest.json の commands のキーと一致させること
+const COMMAND = {
+  areaPin: 'start-area-pin',
+} as const;
+
 const CONTENT_SCRIPT = 'content.js';
 const HELPER_PAGE = 'helper.html';
 const BADGE_CLEAR_DELAY_MS = 8000;
@@ -97,10 +102,9 @@ function toContentMessage(info: chrome.contextMenus.OnClickData): ContentMessage
   return null;
 }
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+async function startInTab(tab: chrome.tabs.Tab | undefined, message: ContentMessage): Promise<void> {
   const tabId = tab?.id;
-  const message = toContentMessage(info);
-  if (tabId === undefined || !message) return;
+  if (tab === undefined || tabId === undefined) return;
 
   await clearBadge(tabId);
 
@@ -109,7 +113,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
-  const url = tab?.url ?? tab?.pendingUrl ?? '';
+  const url = tab.url ?? tab.pendingUrl ?? '';
   const preflight = preflightError(url);
   if (preflight) {
     await reportFailure(tabId, preflight);
@@ -120,9 +124,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await chrome.scripting.executeScript({ target: { tabId }, files: [CONTENT_SCRIPT] });
     await chrome.tabs.sendMessage(tabId, message);
   } catch (error) {
-    console.error('[ClipPiP] failed to start from the context menu', { url, error });
+    console.error('[ClipPiP] failed to start', { url, error });
     await reportFailure(tabId, describeFailure(error, url));
   }
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  const message = toContentMessage(info);
+  if (!message) return;
+  void startInTab(tab, message);
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== COMMAND.areaPin) return;
+  void startInTab(tab, { type: MessageType.StartAreaPin });
 });
 
 async function captureVisibleTab(sender: chrome.runtime.MessageSender): Promise<CaptureResult> {

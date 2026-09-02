@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
 	"name": "ClipPiP",
-	"version": "0.1.0",
-	"default_locale": "ja",
+	"version": "1.0.0",
+	"default_locale": "en",
 	"description": "__MSG_extDescription__",
 	"minimum_chrome_version": "116",
 	"permissions": [
@@ -16,6 +16,11 @@
 	],
 	"background": {
 		"service_worker": "service-worker.js"
+	},
+	"commands": {
+		"start-area-pin": {
+			"description": "__MSG_contextMenuAreaPin__"
+		}
 	},
 	"action": {
 		"default_title": "ClipPiP",

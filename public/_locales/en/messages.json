@@ -35,6 +35,15 @@
   "textPinHintBody": {
     "message": "Select text on the page, right-click, and\nchoose \"Pin selected text to PiP\"."
   },
+  "shortcutHintTitle": {
+    "message": "Keyboard shortcut"
+  },
+  "shortcutHintBody": {
+    "message": "None is assigned by default.\nSet one at chrome://extensions/shortcuts."
+  },
+  "shortcutAction": {
+    "message": "Set a shortcut"
+  },
   "pipUnsupported": {
     "message": "This browser doesn't support Picture-in-Picture."
   },
