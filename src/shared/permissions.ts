@@ -22,7 +22,7 @@ export async function openPermissionWindow(): Promise<boolean> {
       url: chrome.runtime.getURL('permission.html'),
       type: 'popup',
       width: 420,
-      height: 300,
+      height: 360,
     });
     return true;
   } catch (error) {

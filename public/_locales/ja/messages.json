@@ -132,12 +132,12 @@
     "message": "許可を反映するには、ツールバーのアイコンか右クリックメニューから呼び出し直してください。"
   },
   "permissionTitle": {
-    "message": "ライブ表示の許可"
+    "message": "ライブPiP表示"
   },
   "permissionBody": {
-    "message": "選択した範囲をライブ映像で表示するには、タブの映像を受け取る許可が必要です。"
+    "message": "選択した範囲をライブ映像でPiPウィンドウに表示します。\n静止画やテキストの表示と違い、元のタブを閉じると見られなくなります。\n使用するにはChromeの許可が必要です。"
   },
   "permissionAction": {
-    "message": "許可する"
+    "message": "OK"
   }
 }

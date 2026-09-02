@@ -132,12 +132,12 @@
     "message": "Reopen ClipPiP from the toolbar icon or the context menu to apply the permission."
   },
   "permissionTitle": {
-    "message": "Live view permission"
+    "message": "Live PiP"
   },
   "permissionBody": {
-    "message": "Showing a live area needs permission to receive this tab's video."
+    "message": "Shows the area you pick as live video in the PiP window.\nUnlike a still capture or text, closing the source tab ends the live view.\nUsing it requires Chrome's permission."
   },
   "permissionAction": {
-    "message": "Allow"
+    "message": "OK"
   }
 }
