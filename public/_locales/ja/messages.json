@@ -128,7 +128,16 @@
   "liveNeedsPermission": {
     "message": "ライブ表示には許可が必要です。拡張機能のアイコンから「ライブ範囲を選択」を一度実行してください。"
   },
-  "liveGranted": {
-    "message": "許可しました。もう一度「ライブ範囲を選択」を押してください。"
+  "liveRetryAfterGrant": {
+    "message": "許可を反映するには、ツールバーのアイコンか右クリックメニューから呼び出し直してください。"
+  },
+  "permissionTitle": {
+    "message": "ライブ表示の許可"
+  },
+  "permissionBody": {
+    "message": "選択した範囲をライブ映像で表示するには、タブの映像を受け取る許可が必要です。"
+  },
+  "permissionAction": {
+    "message": "許可する"
   }
 }

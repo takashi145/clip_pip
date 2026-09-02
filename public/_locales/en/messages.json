@@ -128,7 +128,16 @@
   "liveNeedsPermission": {
     "message": "Live view needs permission. Use \"Select a live area\" from the toolbar icon once."
   },
-  "liveGranted": {
-    "message": "Permission granted. Press \"Select a live area\" once more."
+  "liveRetryAfterGrant": {
+    "message": "Reopen ClipPiP from the toolbar icon or the context menu to apply the permission."
+  },
+  "permissionTitle": {
+    "message": "Live view permission"
+  },
+  "permissionBody": {
+    "message": "Showing a live area needs permission to receive this tab's video."
+  },
+  "permissionAction": {
+    "message": "Allow"
   }
 }

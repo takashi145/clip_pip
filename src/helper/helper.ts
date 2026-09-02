@@ -13,7 +13,7 @@ import { renderTextPip, textPipSize } from '../pip/text-pip';
 import { localizeDocument } from '../shared/localize';
 import { focusSourceTab, getSourceTabId, isSourceTabAlive } from '../shared/source-tab';
 import type { Ack, LivePipPayload, PipActivation, PipPayload } from '../shared/types';
-import { MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
+import { LIVE_RETRY_ERROR, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 localizeDocument();
 
@@ -86,9 +86,30 @@ function captureLimit(payload: LivePipPayload): { width: number; height: number 
   };
 }
 
-/** ID の consumer はこのタブに固定されているので、映像に変換できるのはここだけ。 */
+/** ストリームを使うのはこのタブなので、ID もここで取る。 */
+async function requestStreamId(): Promise<string> {
+  const targetTabId = await getSourceTabId();
+  if (targetTabId === null) throw new Error('the source tab is unknown');
+  if (!chrome.tabCapture?.getMediaStreamId) throw new Error('tabCapture is not granted');
+
+  const consumerTabId = (await chrome.tabs.getCurrent())?.id;
+
+  return await new Promise<string>((resolve, reject) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId, consumerTabId }, (id) => {
+      const failure = chrome.runtime.lastError;
+      if (failure) reject(new Error(failure.message ?? 'failed to get a media stream id'));
+      else resolve(id);
+    });
+  });
+}
+
+/** 許可の直後は、その前に発行された activeTab に capture の権限が乗っていない。 */
+function isGrantError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('has not been invoked');
+}
+
 async function openTabStream(payload: LivePipPayload): Promise<MediaStream> {
-  const { streamId } = payload;
+  const streamId = await requestStreamId();
   const { width: maxWidth, height: maxHeight } = captureLimit(payload);
 
   return await navigator.mediaDevices.getUserMedia({
@@ -162,7 +183,7 @@ function activatePip(activation: PipActivation, sendResponse: (response: Ack) =>
 
 async function receivePayload(payload: PipPayload): Promise<Ack> {
   pendingPayload = payload;
-  // ストリーム ID は一度きりなので保存しない。復元しても映像には変換できない。
+  // ライブは保存しない。後から復元しても映像を取り直せない。
   if (payload.kind !== 'live') {
     await chrome.storage.session.set({ [SESSION_KEY.payload]: payload });
   }
@@ -186,8 +207,9 @@ async function receivePayload(payload: PipPayload): Promise<Ack> {
       console.error('[ClipPiP] failed to render the PiP', error);
       pipManager.close();
       if (payload.kind === 'live') {
-        showStatus(UI_TEXT.liveCaptureFailed);
-        return { ok: false, error: 'failed to open the tab stream' };
+        const retry = isGrantError(error);
+        showStatus(retry ? UI_TEXT.liveRetryAfterGrant : UI_TEXT.liveCaptureFailed);
+        return { ok: false, error: retry ? LIVE_RETRY_ERROR : 'failed to open the tab stream' };
       }
     }
   }

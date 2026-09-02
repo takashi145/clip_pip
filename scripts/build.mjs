@@ -18,6 +18,7 @@ const buildOptions = {
     content: 'src/content/content.ts',
     popup: 'src/popup/popup.ts',
     helper: 'src/helper/helper.ts',
+    permission: 'src/permission/permission.ts',
   },
   outdir,
   bundle: true,
@@ -36,8 +37,12 @@ async function copyStaticAssets() {
   await cp(path.join(root, 'public'), outdir, { recursive: true });
   await cp(path.join(root, 'src', 'popup', 'popup.html'), path.join(outdir, 'popup.html'));
   await cp(path.join(root, 'src', 'popup', 'popup.css'), path.join(outdir, 'popup.css'));
-  // helper.html は popup.css を共有する
+  // helper.html と permission.html は popup.css を共有する
   await cp(path.join(root, 'src', 'helper', 'helper.html'), path.join(outdir, 'helper.html'));
+  await cp(
+    path.join(root, 'src', 'permission', 'permission.html'),
+    path.join(outdir, 'permission.html'),
+  );
 }
 
 await rm(outdir, { recursive: true, force: true });

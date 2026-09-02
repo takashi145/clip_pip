@@ -11,10 +11,9 @@ import type {
   ContentMessage,
   PersistentPipState,
   PipPayload,
-  TabStreamResult,
 } from '../shared/types';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
-import { MessageType, UI_TEXT } from '../shared/types';
+import { LIVE_RETRY_ERROR, MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
 import { getSelectedText } from './text-selection';
 
@@ -350,16 +349,6 @@ function nextPaint(): Promise<void> {
   return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
-async function requestTabStream(): Promise<string> {
-  const result = (await chrome.runtime.sendMessage({
-    type: MessageType.RequestTabStream,
-  })) as TabStreamResult | undefined;
-
-  if (!result) throw new Error('no response from the service worker');
-  if (!result.ok) throw new Error(result.error);
-  return result.streamId;
-}
-
 async function requestCapture(): Promise<string> {
   const result = (await chrome.runtime.sendMessage({
     type: MessageType.CaptureVisibleTab,
@@ -464,22 +453,13 @@ async function runLivePin(): Promise<void> {
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   const dpr = window.devicePixelRatio || 1;
 
-  let streamId: string;
-  try {
-    streamId = await requestTabStream();
-  } catch (error) {
-    console.error('[ClipPiP] failed to obtain the tab stream', error);
-    await closePersistentPip();
-    showToast(UI_TEXT.liveCaptureFailed);
-    return;
-  }
-
   pipManager.close();
   try {
-    const rendered = await renderPersistentPip({ kind: 'live', streamId, rect, viewport, dpr });
+    const rendered = await renderPersistentPip({ kind: 'live', rect, viewport, dpr });
     if (!rendered.ok) {
       await closePersistentPip();
-      showToast(UI_TEXT.liveCaptureFailed);
+      const retry = rendered.error === LIVE_RETRY_ERROR;
+      showToast(retry ? UI_TEXT.liveRetryAfterGrant : UI_TEXT.liveCaptureFailed);
       return;
     }
     if (!activation.ok) await showPersistentPipHelper();

@@ -4,15 +4,9 @@
  * ツールチップで理由を伝える。notifications 権限を増やさずに済ませるための選択。
  */
 import { describeFailure, preflightError } from '../shared/failure';
-import { hasTabCapture } from '../shared/permissions';
+import { hasTabCapture, openPermissionWindow } from '../shared/permissions';
 import { focusSourceTab } from '../shared/source-tab';
-import type {
-  Ack,
-  CaptureResult,
-  ContentMessage,
-  PersistentPipState,
-  TabStreamResult,
-} from '../shared/types';
+import type { Ack, CaptureResult, ContentMessage, PersistentPipState } from '../shared/types';
 import { formatBadgeErrorTitle, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 const MENU_ID = {
@@ -57,7 +51,8 @@ function registerContextMenus(): void {
 chrome.runtime.onInstalled.addListener(registerContextMenus);
 chrome.runtime.onStartup.addListener(registerContextMenus);
 
-// 動いているワーカーは新しい権限を認識しないみたいなので、拡張機能ごと入れ直す
+// タブに配られ済みの activeTab には capture の権限が乗っていない。消す手段が
+// 入れ直ししかないため、許可された時点で拡張機能ごと読み込み直す。
 chrome.permissions.onAdded.addListener(() => {
   chrome.runtime.reload();
 });
@@ -109,9 +104,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   await clearBadge(tabId);
 
-  // permissions.request() は拡張機能のページからしか呼べないので、ここでは案内だけ出す
   if (message.type === MessageType.StartLivePin && !(await hasTabCapture())) {
-    await reportFailure(tabId, UI_TEXT.liveNeedsPermission);
+    if (!(await openPermissionWindow())) await reportFailure(tabId, UI_TEXT.liveNeedsPermission);
     return;
   }
 
@@ -141,37 +135,6 @@ async function captureVisibleTab(sender: chrome.runtime.MessageSender): Promise<
     const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
     return { ok: true, dataUrl };
   } catch (error) {
-    return { ok: false, error: toErrorMessage(error) };
-  }
-}
-
-/** Live Pin 用のストリーム ID。拡張機能のページからは発行できないので、ここで作る。 */
-async function requestTabStream(sender: chrome.runtime.MessageSender): Promise<TabStreamResult> {
-  const targetTabId = sender.tab?.id;
-  if (targetTabId === undefined) {
-    return { ok: false, error: 'sender tab is unknown' };
-  }
-
-  const consumerTabId = await helperTabId();
-  if (consumerTabId === null) {
-    return { ok: false, error: 'helper tab is not ready' };
-  }
-  // 未許可だと chrome.tabCapture 自体が存在しない
-  if (!chrome.tabCapture?.getMediaStreamId) {
-    return { ok: false, error: 'chrome.tabCapture is unavailable in this worker' };
-  }
-
-  try {
-    const streamId = await new Promise<string>((resolve, reject) => {
-      chrome.tabCapture.getMediaStreamId({ targetTabId, consumerTabId }, (id) => {
-        const failure = chrome.runtime.lastError;
-        if (failure) reject(new Error(failure.message ?? 'failed to get a media stream id'));
-        else resolve(id);
-      });
-    });
-    return { ok: true, streamId };
-  } catch (error) {
-    console.error('[ClipPiP] failed to issue a tab stream id', error);
     return { ok: false, error: toErrorMessage(error) };
   }
 }
@@ -317,9 +280,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
     case MessageType.CaptureVisibleTab:
       void captureVisibleTab(sender).then(sendResponse);
-      break;
-    case MessageType.RequestTabStream:
-      void requestTabStream(sender).then(sendResponse);
       break;
     case MessageType.PreparePersistentPip:
       void prepareHelper(sender).then(sendResponse);

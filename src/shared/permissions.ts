@@ -15,6 +15,22 @@ export async function hasTabCapture(): Promise<boolean> {
   }
 }
 
+/** permissions.request() は拡張機能のページからしか呼べないので、小窓を開いて受ける。 */
+export async function openPermissionWindow(): Promise<boolean> {
+  try {
+    await chrome.windows.create({
+      url: chrome.runtime.getURL('permission.html'),
+      type: 'popup',
+      width: 420,
+      height: 300,
+    });
+    return true;
+  } catch (error) {
+    console.warn('[ClipPiP] failed to open the permission window', error);
+    return false;
+  }
+}
+
 /** 既に許可済みなら確認画面を出さずに true を返す。ユーザー操作の直後に呼ぶこと。 */
 export async function requestTabCapture(): Promise<boolean> {
   try {

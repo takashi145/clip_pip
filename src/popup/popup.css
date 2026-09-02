@@ -144,6 +144,13 @@ body.helper {
   display: none;
 }
 
+/* permission.html の説明文。 */
+.permission-body {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .setting {
   display: flex;
   align-items: center;

@@ -21,8 +21,6 @@ export const MessageType = {
   StartTextPin: 'clippip/start-text-pin',
   /** content script -> service worker: 可視タブのキャプチャを要求する */
   CaptureVisibleTab: 'clippip/capture-visible-tab',
-  /** content script -> service worker: 元タブの映像ストリーム ID を要求する */
-  RequestTabStream: 'clippip/request-tab-stream',
   /** content script -> service worker: 最小化したヘルパーを先に待機させる */
   PreparePersistentPip: 'clippip/prepare-persistent-pip',
   /** content script -> helper: 現在のユーザー操作で空の PiP を確保する */
@@ -65,9 +63,8 @@ export type CaptureResult =
   | { ok: true; dataUrl: string }
   | { ok: false; error: string };
 
-export type TabStreamResult =
-  | { ok: true; streamId: string }
-  | { ok: false; error: string };
+/** 許可の直後で、このタブではまだ capture できないときの Ack.error。 */
+export const LIVE_RETRY_ERROR = 'clippip/live-retry-after-grant';
 
 export interface Ack {
   ok: boolean;
@@ -90,10 +87,9 @@ export interface TextPipPayload {
   text: string;
 }
 
-/** Live Pin。ストリーム ID を映像に変換できるのは consumer に指定されたヘルパーだけ。 */
+/** Live Pin。映像そのものはヘルパーが元タブから直接取りに行く。 */
 export interface LivePipPayload {
   kind: 'live';
-  streamId: string;
   /** 元ページでの選択範囲（CSS ピクセル）。 */
   rect: Rect;
   /** 切り出し位置を映像の解像度へ換算するために使う。 */
@@ -240,8 +236,17 @@ export const UI_TEXT = {
   get liveNeedsPermission(): string {
     return chrome.i18n.getMessage('liveNeedsPermission');
   },
-  get liveGranted(): string {
-    return chrome.i18n.getMessage('liveGranted');
+  get liveRetryAfterGrant(): string {
+    return chrome.i18n.getMessage('liveRetryAfterGrant');
+  },
+  get permissionTitle(): string {
+    return chrome.i18n.getMessage('permissionTitle');
+  },
+  get permissionBody(): string {
+    return chrome.i18n.getMessage('permissionBody');
+  },
+  get permissionAction(): string {
+    return chrome.i18n.getMessage('permissionAction');
   },
   get badgeDefaultTitle(): string {
     return chrome.i18n.getMessage('badgeDefaultTitle');
