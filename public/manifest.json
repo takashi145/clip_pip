@@ -11,6 +11,9 @@
 		"scripting",
 		"storage"
 	],
+	"optional_permissions": [
+		"tabCapture"
+	],
 	"background": {
 		"service_worker": "service-worker.js"
 	},

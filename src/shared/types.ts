@@ -15,6 +15,8 @@ export interface Viewport {
 export const MessageType = {
   /** popup -> content script: Area Pin モードを開始する */
   StartAreaPin: 'clippip/start-area-pin',
+  /** popup / service worker -> content script: Live Pin モードを開始する */
+  StartLivePin: 'clippip/start-live-pin',
   /** service worker -> content script: Text Pin を実行する */
   StartTextPin: 'clippip/start-text-pin',
   /** content script -> service worker: 可視タブのキャプチャを要求する */
@@ -47,7 +49,11 @@ export interface StartTextPinMessage {
   fallbackText: string;
 }
 
-export type ContentMessage = StartAreaPinMessage | StartTextPinMessage;
+export interface StartLivePinMessage {
+  type: typeof MessageType.StartLivePin;
+}
+
+export type ContentMessage = StartAreaPinMessage | StartTextPinMessage | StartLivePinMessage;
 
 export interface CaptureVisibleTabMessage {
   type: typeof MessageType.CaptureVisibleTab;
@@ -56,6 +62,9 @@ export interface CaptureVisibleTabMessage {
 export type CaptureResult =
   | { ok: true; dataUrl: string }
   | { ok: false; error: string };
+
+/** 許可の直後で、このタブではまだ capture できないときの Ack.error。 */
+export const LIVE_RETRY_ERROR = 'clippip/live-retry-after-grant';
 
 export interface Ack {
   ok: boolean;
@@ -78,10 +87,22 @@ export interface TextPipPayload {
   text: string;
 }
 
-export type PipPayload = AreaPipPayload | TextPipPayload;
+/** Live Pin。映像そのものはヘルパーが元タブから直接取りに行く。 */
+export interface LivePipPayload {
+  kind: 'live';
+  /** 元ページでの選択範囲（CSS ピクセル）。 */
+  rect: Rect;
+  /** 切り出し位置を映像の解像度へ換算するために使う。 */
+  viewport: Viewport;
+  /** キャプチャ解像度の上限を決めるのに使う。 */
+  dpr: number;
+}
+
+export type PipPayload = AreaPipPayload | TextPipPayload | LivePipPayload;
 
 export type PipActivation =
   | { kind: 'area'; rect: Rect }
+  | { kind: 'live'; rect: Rect }
   | { kind: 'text' };
 
 export interface OpenPersistentPipMessage {
@@ -202,6 +223,30 @@ export const UI_TEXT = {
   },
   get contextMenuTextPin(): string {
     return chrome.i18n.getMessage('contextMenuTextPin');
+  },
+  get contextMenuLivePin(): string {
+    return chrome.i18n.getMessage('contextMenuLivePin');
+  },
+  get liveCaptureFailed(): string {
+    return chrome.i18n.getMessage('liveCaptureFailed');
+  },
+  get liveEnded(): string {
+    return chrome.i18n.getMessage('liveEnded');
+  },
+  get liveNeedsPermission(): string {
+    return chrome.i18n.getMessage('liveNeedsPermission');
+  },
+  get liveRetryAfterGrant(): string {
+    return chrome.i18n.getMessage('liveRetryAfterGrant');
+  },
+  get permissionTitle(): string {
+    return chrome.i18n.getMessage('permissionTitle');
+  },
+  get permissionBody(): string {
+    return chrome.i18n.getMessage('permissionBody');
+  },
+  get permissionAction(): string {
+    return chrome.i18n.getMessage('permissionAction');
   },
   get badgeDefaultTitle(): string {
     return chrome.i18n.getMessage('badgeDefaultTitle');

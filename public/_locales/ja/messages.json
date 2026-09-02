@@ -121,5 +121,32 @@
         "example": "このページではClipPiPを利用できません。"
       }
     }
+  },
+  "livePinButton": {
+    "message": "ライブ範囲を選択"
+  },
+  "contextMenuLivePin": {
+    "message": "範囲を選択してライブPiP表示"
+  },
+  "liveCaptureFailed": {
+    "message": "このページではライブ表示を開始できませんでした。"
+  },
+  "liveEnded": {
+    "message": "元のタブが閉じられたため、映像が終了しました。"
+  },
+  "liveNeedsPermission": {
+    "message": "ライブ表示には許可が必要です。拡張機能のアイコンから「ライブ範囲を選択」を一度実行してください。"
+  },
+  "liveRetryAfterGrant": {
+    "message": "許可を反映するには、ツールバーのアイコンか右クリックメニューから呼び出し直してください。"
+  },
+  "permissionTitle": {
+    "message": "ライブPiP表示"
+  },
+  "permissionBody": {
+    "message": "選択した範囲をライブ映像でPiPウィンドウに表示します。\n静止画やテキストの表示と違い、元のタブを閉じると見られなくなります。\n使用するにはChromeの許可が必要です。"
+  },
+  "permissionAction": {
+    "message": "OK"
   }
 }

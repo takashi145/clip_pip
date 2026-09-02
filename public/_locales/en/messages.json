@@ -121,5 +121,32 @@
         "example": "ClipPiP can't be used on this page."
       }
     }
+  },
+  "livePinButton": {
+    "message": "Select a live area"
+  },
+  "contextMenuLivePin": {
+    "message": "Select an area to pin live to PiP"
+  },
+  "liveCaptureFailed": {
+    "message": "Live view couldn't be started on this page."
+  },
+  "liveEnded": {
+    "message": "The source tab was closed, so the video ended."
+  },
+  "liveNeedsPermission": {
+    "message": "Live view needs permission. Use \"Select a live area\" from the toolbar icon once."
+  },
+  "liveRetryAfterGrant": {
+    "message": "Reopen ClipPiP from the toolbar icon or the context menu to apply the permission."
+  },
+  "permissionTitle": {
+    "message": "Live PiP"
+  },
+  "permissionBody": {
+    "message": "Shows the area you pick as live video in the PiP window.\nUnlike a still capture or text, closing the source tab ends the live view.\nUsing it requires Chrome's permission."
+  },
+  "permissionAction": {
+    "message": "OK"
   }
 }

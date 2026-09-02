@@ -4,12 +4,14 @@
  * ツールチップで理由を伝える。notifications 権限を増やさずに済ませるための選択。
  */
 import { describeFailure, preflightError } from '../shared/failure';
+import { hasTabCapture, openPermissionWindow } from '../shared/permissions';
 import { focusSourceTab } from '../shared/source-tab';
 import type { Ack, CaptureResult, ContentMessage, PersistentPipState } from '../shared/types';
 import { formatBadgeErrorTitle, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 const MENU_ID = {
   areaPin: 'clippip/area-pin',
+  livePin: 'clippip/live-pin',
   textPin: 'clippip/text-pin',
 } as const;
 
@@ -39,6 +41,11 @@ function registerContextMenus(): void {
       contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
     });
     chrome.contextMenus.create({
+      id: MENU_ID.livePin,
+      title: UI_TEXT.contextMenuLivePin,
+      contexts: ['page', 'image', 'link', 'video', 'audio', 'frame'],
+    });
+    chrome.contextMenus.create({
       id: MENU_ID.textPin,
       title: UI_TEXT.contextMenuTextPin,
       contexts: ['selection'],
@@ -48,6 +55,12 @@ function registerContextMenus(): void {
 
 chrome.runtime.onInstalled.addListener(registerContextMenus);
 chrome.runtime.onStartup.addListener(registerContextMenus);
+
+// タブに配られ済みの activeTab には capture の権限が乗っていない。消す手段が
+// 入れ直ししかないため、許可された時点で拡張機能ごと読み込み直す。
+chrome.permissions.onAdded.addListener(() => {
+  chrome.runtime.reload();
+});
 
 async function clearBadge(tabId: number): Promise<void> {
   try {
@@ -78,6 +91,9 @@ function toContentMessage(info: chrome.contextMenus.OnClickData): ContentMessage
   if (info.menuItemId === MENU_ID.areaPin) {
     return { type: MessageType.StartAreaPin };
   }
+  if (info.menuItemId === MENU_ID.livePin) {
+    return { type: MessageType.StartLivePin };
+  }
   if (info.menuItemId === MENU_ID.textPin) {
     const fallbackText = info.selectionText ?? '';
     if (fallbackText.trim().length === 0) return null;
@@ -91,6 +107,11 @@ async function startInTab(tab: chrome.tabs.Tab | undefined, message: ContentMess
   if (tab === undefined || tabId === undefined) return;
 
   await clearBadge(tabId);
+
+  if (message.type === MessageType.StartLivePin && !(await hasTabCapture())) {
+    if (!(await openPermissionWindow())) await reportFailure(tabId, UI_TEXT.liveNeedsPermission);
+    return;
+  }
 
   const url = tab.url ?? tab.pendingUrl ?? '';
   const preflight = preflightError(url);

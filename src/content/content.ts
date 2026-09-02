@@ -5,9 +5,15 @@
 import { cropCapture, encodeImage } from '../capture/capture';
 import type { CroppedImage } from '../capture/capture';
 import { isDocumentPipSupported, pipManager } from '../pip/pip-manager';
-import type { Ack, CaptureResult, ContentMessage, PersistentPipState, PipPayload } from '../shared/types';
+import type {
+  Ack,
+  CaptureResult,
+  ContentMessage,
+  PersistentPipState,
+  PipPayload,
+} from '../shared/types';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
-import { MessageType, UI_TEXT } from '../shared/types';
+import { LIVE_RETRY_ERROR, MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
 import { getSelectedText } from './text-selection';
 
@@ -419,6 +425,50 @@ async function runAreaPin(): Promise<void> {
   }
 }
 
+/** Live Pin。映像の供給源が元タブなので、閉じるとそこで止まる。 */
+async function runLivePin(): Promise<void> {
+  if (!isDocumentPipSupported()) {
+    showToast(UI_TEXT.pipUnsupported);
+    return;
+  }
+
+  if (!(await allowSwitch())) return;
+
+  try {
+    // ストリーム ID の consumer に指定するため、先にヘルパーを用意しておく
+    await preparePersistentPip();
+  } catch (error) {
+    console.error('[ClipPiP] failed to prepare the helper window', error);
+    showToast(UI_TEXT.pipFailed);
+    return;
+  }
+
+  const rect = await selectArea();
+  if (!rect) {
+    await closePersistentPip();
+    return;
+  }
+
+  const activation = await activatePersistentPip({ kind: 'live', rect });
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const dpr = window.devicePixelRatio || 1;
+
+  pipManager.close();
+  try {
+    const rendered = await renderPersistentPip({ kind: 'live', rect, viewport, dpr });
+    if (!rendered.ok) {
+      await closePersistentPip();
+      const retry = rendered.error === LIVE_RETRY_ERROR;
+      showToast(retry ? UI_TEXT.liveRetryAfterGrant : UI_TEXT.liveCaptureFailed);
+      return;
+    }
+    if (!activation.ok) await showPersistentPipHelper();
+  } catch (error) {
+    console.error('[ClipPiP] failed to hand the stream to the helper window', error);
+    showToast(UI_TEXT.liveCaptureFailed);
+  }
+}
+
 async function runTextPin(fallbackText: string): Promise<void> {
   if (!isDocumentPipSupported()) {
     showToast(UI_TEXT.pipUnsupported);
@@ -456,6 +506,9 @@ async function handleMessage(message: ContentMessage): Promise<void> {
       case MessageType.StartAreaPin:
         await runAreaPin();
         break;
+      case MessageType.StartLivePin:
+        await runLivePin();
+        break;
       case MessageType.StartTextPin:
         await runTextPin(message.fallbackText);
         break;
@@ -470,8 +523,14 @@ const globalScope = globalThis as Record<string, unknown>;
 if (!globalScope[LOADED_FLAG]) {
   globalScope[LOADED_FLAG] = true;
 
+  const HANDLED: ReadonlySet<string> = new Set<string>([
+    MessageType.StartAreaPin,
+    MessageType.StartLivePin,
+    MessageType.StartTextPin,
+  ]);
+
   chrome.runtime.onMessage.addListener((message: ContentMessage, _sender, sendResponse) => {
-    if (message?.type !== MessageType.StartAreaPin && message?.type !== MessageType.StartTextPin) {
+    if (!HANDLED.has(message?.type)) {
       return false;
     }
     // popup は即座に閉じるため、処理を待たず受領だけ返す

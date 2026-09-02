@@ -4,13 +4,15 @@
  */
 import { describeFailure, preflightError } from '../shared/failure';
 import { localizeDocument } from '../shared/localize';
+import { hasTabCapture, openPermissionWindow } from '../shared/permissions';
 import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
-import type { StartAreaPinMessage } from '../shared/types';
+import type { ContentMessage } from '../shared/types';
 import { MessageType, UI_TEXT } from '../shared/types';
 
 localizeDocument();
 
-const button = document.getElementById('area-pin') as HTMLButtonElement | null;
+const areaButton = document.getElementById('area-pin') as HTMLButtonElement | null;
+const liveButton = document.getElementById('live-pin') as HTMLButtonElement | null;
 const errorBox = document.getElementById('error') as HTMLParagraphElement | null;
 const confirmSwitchBox = document.getElementById('confirm-switch') as HTMLInputElement | null;
 const shortcutsButton = document.getElementById('open-shortcuts') as HTMLButtonElement | null;
@@ -29,7 +31,7 @@ function clearError(): void {
   errorBox.hidden = true;
 }
 
-async function startAreaPin(): Promise<void> {
+async function start(message: ContentMessage): Promise<void> {
   clearError();
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -47,11 +49,9 @@ async function startAreaPin(): Promise<void> {
 
   try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-    await chrome.tabs.sendMessage(tab.id, {
-      type: MessageType.StartAreaPin,
-    } satisfies StartAreaPinMessage);
+    await chrome.tabs.sendMessage(tab.id, message);
   } catch (error) {
-    console.error('[ClipPiP] failed to start Area Pin', { url, error });
+    console.error('[ClipPiP] failed to start', { url, error });
     showError(describeFailure(error, url));
     return;
   }
@@ -59,13 +59,32 @@ async function startAreaPin(): Promise<void> {
   window.close();
 }
 
-button?.addEventListener('click', () => {
-  if (!button) return;
-  button.disabled = true;
-  void startAreaPin().finally(() => {
-    button.disabled = false;
+/** 未許可なら、右クリック経由と同じ小窓に任せる。許可の直後は拡張機能が入れ直される。 */
+async function prepareLivePin(): Promise<boolean> {
+  if (await hasTabCapture()) return true;
+  await openPermissionWindow();
+  window.close();
+  return false;
+}
+
+function bindStart(
+  button: HTMLButtonElement | null,
+  message: ContentMessage,
+  before?: () => Promise<boolean>,
+): void {
+  button?.addEventListener('click', () => {
+    button.disabled = true;
+    void (async () => {
+      if (before && !(await before())) return;
+      await start(message);
+    })().finally(() => {
+      button.disabled = false;
+    });
   });
-});
+}
+
+bindStart(areaButton, { type: MessageType.StartAreaPin });
+bindStart(liveButton, { type: MessageType.StartLivePin }, prepareLivePin);
 
 function bindToggle(
   box: HTMLInputElement | null,
