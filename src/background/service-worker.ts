@@ -18,6 +18,7 @@ const MENU_ID = {
 // manifest.json の commands のキーと一致させること
 const COMMAND = {
   areaPin: 'start-area-pin',
+  livePin: 'start-live-pin',
 } as const;
 
 const CONTENT_SCRIPT = 'content.js';
@@ -136,8 +137,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command !== COMMAND.areaPin) return;
-  void startInTab(tab, { type: MessageType.StartAreaPin });
+  if (command === COMMAND.areaPin) void startInTab(tab, { type: MessageType.StartAreaPin });
+  if (command === COMMAND.livePin) void startInTab(tab, { type: MessageType.StartLivePin });
 });
 
 async function captureVisibleTab(sender: chrome.runtime.MessageSender): Promise<CaptureResult> {

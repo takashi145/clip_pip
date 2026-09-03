@@ -20,6 +20,9 @@
 	"commands": {
 		"start-area-pin": {
 			"description": "__MSG_contextMenuAreaPin__"
+		},
+		"start-live-pin": {
+			"description": "__MSG_contextMenuLivePin__"
 		}
 	},
 	"action": {
