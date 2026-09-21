@@ -183,6 +183,7 @@ async function forgetHelper(): Promise<void> {
     SESSION_KEY.sourceTabId,
     SESSION_KEY.payload,
     SESSION_KEY.helperWindowId,
+    SESSION_KEY.currentKind,
   ]);
 }
 
@@ -195,6 +196,15 @@ async function isHelperOpen(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** 表示中かどうかと、表示中ならその種類を返す */
+async function queryPersistentPip(): Promise<PersistentPipState> {
+  const open = await isHelperOpen();
+  if (!open) return { open: false };
+
+  const stored = await chrome.storage.session.get(SESSION_KEY.currentKind);
+  return { open: true, kind: stored[SESSION_KEY.currentKind] as PersistentPipState['kind'] };
 }
 
 async function closeHelper(): Promise<Ack> {
@@ -304,7 +314,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       void showHelper().then(sendResponse);
       break;
     case MessageType.QueryPersistentPip:
-      void isHelperOpen().then((open) => sendResponse({ open } satisfies PersistentPipState));
+      void queryPersistentPip().then(sendResponse);
       break;
     case MessageType.ClosePersistentPip:
       void closeHelper().then(sendResponse);

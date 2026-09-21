@@ -3,6 +3,7 @@
  * storage 権限はインストール時の警告文言を増やさないため、最小権限の方針とは両立する。
  */
 const CONFIRM_SWITCH_KEY = 'confirmPipSwitch';
+const APPEND_TEXT_KEY = 'appendTextPin';
 
 async function readFlag(key: string, fallback: boolean): Promise<boolean> {
   try {
@@ -33,4 +34,15 @@ export function shouldConfirmSwitch(): Promise<boolean> {
 
 export function setConfirmSwitch(value: boolean): Promise<void> {
   return writeFlag(CONFIRM_SWITCH_KEY, value);
+}
+
+/**
+ * 表示中の Text Pin に新しい選択を追記するか。既定は追記
+ */
+export function shouldAppendText(): Promise<boolean> {
+  return readFlag(APPEND_TEXT_KEY, true);
+}
+
+export function setAppendText(value: boolean): Promise<void> {
+  return writeFlag(APPEND_TEXT_KEY, value);
 }

@@ -14,6 +14,9 @@
   "confirmSwitchLabel": {
     "message": "Confirm before switching PiP"
   },
+  "appendTextLabel": {
+    "message": "Append text"
+  },
   "persistentPipLabel": {
     "message": "Keep PiP open after closing the tab"
   },
@@ -103,6 +106,9 @@
   },
   "returnToTab": {
     "message": "Go to the source tab"
+  },
+  "clearText": {
+    "message": "Clear"
   },
   "contextMenuAreaPin": {
     "message": "Select an area to pin to PiP"

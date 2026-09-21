@@ -11,8 +11,9 @@ import type {
   ContentMessage,
   PersistentPipState,
   PipPayload,
+  TextPipEntry,
 } from '../shared/types';
-import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
+import { setConfirmSwitch, shouldAppendText, shouldConfirmSwitch } from '../shared/settings';
 import { LIVE_RETRY_ERROR, MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
 import { getSelectedText } from './text-selection';
@@ -273,16 +274,20 @@ function confirmSwitch(): Promise<{ confirmed: boolean; dontAskAgain: boolean }>
 }
 
 /** ヘルパーウィンドウ経由の PiP は別ウィンドウにあるので、service worker に聞く。 */
-async function isPersistentPipOpen(): Promise<boolean> {
+async function queryPersistentPip(): Promise<PersistentPipState> {
   try {
     const state = (await chrome.runtime.sendMessage({
       type: MessageType.QueryPersistentPip,
     })) as PersistentPipState | undefined;
-    return state?.open === true;
+    return state ?? { open: false };
   } catch (error) {
     console.warn('[ClipPiP] failed to query the persistent PiP', error);
-    return false;
+    return { open: false };
   }
+}
+
+async function isPersistentPipOpen(): Promise<boolean> {
+  return (await queryPersistentPip()).open;
 }
 
 async function closePersistentPip(): Promise<void> {
@@ -315,6 +320,10 @@ async function renderPersistentPip(payload: PipPayload): Promise<Ack> {
     type: MessageType.RenderPersistentPip,
     payload,
   });
+}
+
+async function appendPersistentPipText(entry: TextPipEntry): Promise<Ack> {
+  return sendPersistentCommand({ type: MessageType.AppendPersistentPipText, entry });
 }
 
 async function showPersistentPipHelper(): Promise<void> {
@@ -481,13 +490,23 @@ async function runTextPin(fallbackText: string): Promise<void> {
     return;
   }
 
+  const entry: TextPipEntry = { url: location.href, title: document.title, text };
+
+  // 表示中も Text Pin で、設定が ON なら、窓を作り直さず追記する
+  const state = await queryPersistentPip();
+  if (state.open && state.kind === 'text' && (await shouldAppendText())) {
+    const appended = await appendPersistentPipText(entry);
+    if (!appended.ok) showToast(UI_TEXT.pipFailed);
+    return;
+  }
+
   if (!(await allowSwitch())) return;
 
   pipManager.close();
   try {
     await preparePersistentPip();
     const activation = await activatePersistentPip({ kind: 'text' });
-    const rendered = await renderPersistentPip({ kind: 'text', text });
+    const rendered = await renderPersistentPip({ kind: 'text', entries: [entry] });
     if (!activation.ok || !rendered.ok) await showPersistentPipHelper();
   } catch (error) {
     console.error('[ClipPiP] failed to hand the text to the helper window', error);

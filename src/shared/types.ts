@@ -33,6 +33,8 @@ export const MessageType = {
   OpenPersistentPip: 'clippip/open-persistent-pip',
   /** content script -> service worker: ヘルパー経由の PiP が表示中か問い合わせる */
   QueryPersistentPip: 'clippip/query-persistent-pip',
+  /** content script -> helper: 表示中の Text Pin へ追記する */
+  AppendPersistentPipText: 'clippip/append-persistent-pip-text',
   /** content script / helper -> service worker: ヘルパーウィンドウを閉じる */
   ClosePersistentPip: 'clippip/close-persistent-pip',
   /** helper -> service worker: PiP を開いたのでヘルパーを最小化する */
@@ -82,9 +84,15 @@ export interface AreaPipPayload {
   rect: Rect;
 }
 
+export interface TextPipEntry {
+  url: string;
+  title: string;
+  text: string;
+}
+
 export interface TextPipPayload {
   kind: 'text';
-  text: string;
+  entries: TextPipEntry[];
 }
 
 /** Live Pin。映像そのものはヘルパーが元タブから直接取りに行く。 */
@@ -112,6 +120,7 @@ export interface OpenPersistentPipMessage {
 
 export interface PersistentPipState {
   open: boolean;
+  kind?: PipPayload['kind'];
 }
 
 /**
@@ -122,6 +131,7 @@ export const SESSION_KEY = {
   payload: 'clippip/pip-payload',
   helperTabId: 'clippip/helper-tab-id',
   sourceTabId: 'clippip/source-tab-id',
+  currentKind: 'clippip/current-kind',
   /** 旧版の一時ウィンドウ記録を掃除するために残す。 */
   helperWindowId: 'clippip/helper-window-id',
 } as const;
@@ -200,6 +210,9 @@ export const UI_TEXT = {
   get confirmSwitchLabel(): string {
     return chrome.i18n.getMessage('confirmSwitchLabel');
   },
+  get appendTextLabel(): string {
+    return chrome.i18n.getMessage('appendTextLabel');
+  },
   get persistentPipLabel(): string {
     return chrome.i18n.getMessage('persistentPipLabel');
   },
@@ -217,6 +230,9 @@ export const UI_TEXT = {
   },
   get returnToTab(): string {
     return chrome.i18n.getMessage('returnToTab');
+  },
+  get clearText(): string {
+    return chrome.i18n.getMessage('clearText');
   },
   get contextMenuAreaPin(): string {
     return chrome.i18n.getMessage('contextMenuAreaPin');
