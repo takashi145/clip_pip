@@ -14,6 +14,9 @@
   "confirmSwitchLabel": {
     "message": "Confirm before switching PiP"
   },
+  "appendTextLabel": {
+    "message": "Append text"
+  },
   "persistentPipLabel": {
     "message": "Keep PiP open after closing the tab"
   },

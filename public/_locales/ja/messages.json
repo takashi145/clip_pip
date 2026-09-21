@@ -14,6 +14,9 @@
   "confirmSwitchLabel": {
     "message": "PiPを切り替える前に確認する"
   },
+  "appendTextLabel": {
+    "message": "テキストを追記する"
+  },
   "persistentPipLabel": {
     "message": "タブを閉じてもPiPを残す"
   },

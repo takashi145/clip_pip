@@ -12,7 +12,7 @@ import type {
   PersistentPipState,
   PipPayload,
 } from '../shared/types';
-import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
+import { setConfirmSwitch, shouldAppendText, shouldConfirmSwitch } from '../shared/settings';
 import { LIVE_RETRY_ERROR, MessageType, UI_TEXT } from '../shared/types';
 import { selectArea } from './area-selector';
 import { getSelectedText } from './text-selection';
@@ -489,9 +489,9 @@ async function runTextPin(fallbackText: string): Promise<void> {
     return;
   }
 
-  // Text Pin なら、窓を作り直さず追記する
+  // 表示中も Text Pin で、設定が ON なら、窓を作り直さず追記する
   const state = await queryPersistentPip();
-  if (state.open && state.kind === 'text') {
+  if (state.open && state.kind === 'text' && (await shouldAppendText())) {
     const appended = await appendPersistentPipText(text);
     if (!appended.ok) showToast(UI_TEXT.pipFailed);
     return;

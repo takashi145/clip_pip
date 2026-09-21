@@ -204,6 +204,9 @@ export const UI_TEXT = {
   get confirmSwitchLabel(): string {
     return chrome.i18n.getMessage('confirmSwitchLabel');
   },
+  get appendTextLabel(): string {
+    return chrome.i18n.getMessage('appendTextLabel');
+  },
   get persistentPipLabel(): string {
     return chrome.i18n.getMessage('persistentPipLabel');
   },

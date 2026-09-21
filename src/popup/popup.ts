@@ -5,7 +5,12 @@
 import { describeFailure, preflightError } from '../shared/failure';
 import { localizeDocument } from '../shared/localize';
 import { hasTabCapture, openPermissionWindow } from '../shared/permissions';
-import { setConfirmSwitch, shouldConfirmSwitch } from '../shared/settings';
+import {
+  setAppendText,
+  setConfirmSwitch,
+  shouldAppendText,
+  shouldConfirmSwitch,
+} from '../shared/settings';
 import type { ContentMessage } from '../shared/types';
 import { MessageType, UI_TEXT } from '../shared/types';
 
@@ -15,6 +20,7 @@ const areaButton = document.getElementById('area-pin') as HTMLButtonElement | nu
 const liveButton = document.getElementById('live-pin') as HTMLButtonElement | null;
 const errorBox = document.getElementById('error') as HTMLParagraphElement | null;
 const confirmSwitchBox = document.getElementById('confirm-switch') as HTMLInputElement | null;
+const appendTextBox = document.getElementById('append-text') as HTMLInputElement | null;
 const shortcutsButton = document.getElementById('open-shortcuts') as HTMLButtonElement | null;
 
 const SHORTCUTS_URL = 'chrome://extensions/shortcuts';
@@ -101,6 +107,7 @@ function bindToggle(
 }
 
 bindToggle(confirmSwitchBox, shouldConfirmSwitch, setConfirmSwitch);
+bindToggle(appendTextBox, shouldAppendText, setAppendText);
 
 shortcutsButton?.addEventListener('click', () => {
   chrome.tabs
