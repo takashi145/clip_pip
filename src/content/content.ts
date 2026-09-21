@@ -273,16 +273,20 @@ function confirmSwitch(): Promise<{ confirmed: boolean; dontAskAgain: boolean }>
 }
 
 /** ヘルパーウィンドウ経由の PiP は別ウィンドウにあるので、service worker に聞く。 */
-async function isPersistentPipOpen(): Promise<boolean> {
+async function queryPersistentPip(): Promise<PersistentPipState> {
   try {
     const state = (await chrome.runtime.sendMessage({
       type: MessageType.QueryPersistentPip,
     })) as PersistentPipState | undefined;
-    return state?.open === true;
+    return state ?? { open: false };
   } catch (error) {
     console.warn('[ClipPiP] failed to query the persistent PiP', error);
-    return false;
+    return { open: false };
   }
+}
+
+async function isPersistentPipOpen(): Promise<boolean> {
+  return (await queryPersistentPip()).open;
 }
 
 async function closePersistentPip(): Promise<void> {
@@ -315,6 +319,10 @@ async function renderPersistentPip(payload: PipPayload): Promise<Ack> {
     type: MessageType.RenderPersistentPip,
     payload,
   });
+}
+
+async function appendPersistentPipText(text: string): Promise<Ack> {
+  return sendPersistentCommand({ type: MessageType.AppendPersistentPipText, text });
 }
 
 async function showPersistentPipHelper(): Promise<void> {
@@ -478,6 +486,14 @@ async function runTextPin(fallbackText: string): Promise<void> {
   const text = getSelectedText(fallbackText);
   if (!text) {
     showToast(UI_TEXT.noSelection);
+    return;
+  }
+
+  // Text Pin なら、窓を作り直さず追記する
+  const state = await queryPersistentPip();
+  if (state.open && state.kind === 'text') {
+    const appended = await appendPersistentPipText(text);
+    if (!appended.ok) showToast(UI_TEXT.pipFailed);
     return;
   }
 

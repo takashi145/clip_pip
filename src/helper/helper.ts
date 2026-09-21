@@ -12,7 +12,7 @@ import { pipManager } from '../pip/pip-manager';
 import { renderTextPip, textPipSize } from '../pip/text-pip';
 import { localizeDocument } from '../shared/localize';
 import { focusSourceTab, getSourceTabId, isSourceTabAlive } from '../shared/source-tab';
-import type { Ack, LivePipPayload, PipActivation, PipPayload } from '../shared/types';
+import type { Ack, LivePipPayload, PipActivation, PipPayload, TextPipPayload } from '../shared/types';
 import { LIVE_RETRY_ERROR, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 localizeDocument();
@@ -148,6 +148,31 @@ async function renderPayload(
   renderTextPip(win, payload.text, controls);
 }
 
+/** Text Pin へ追記 */
+async function appendText(text: string): Promise<Ack> {
+  if (!pendingPayload || pendingPayload.kind !== 'text') {
+    return { ok: false, error: 'no text pin is open' };
+  }
+
+  const payload: TextPipPayload = { kind: 'text', text: `${pendingPayload.text}\n\n${text}` };
+  pendingPayload = payload;
+  await chrome.storage.session.set({
+    [SESSION_KEY.currentKind]: payload.kind,
+    [SESSION_KEY.payload]: payload,
+  });
+
+  const win = pipManager.current;
+  if (!win) return { ok: true };
+
+  try {
+    await renderPayload(win, payload, null);
+    return { ok: true };
+  } catch (error) {
+    console.error('[ClipPiP] failed to append the text', error);
+    return { ok: false, error: 'failed to append the text' };
+  }
+}
+
 function showFallback(): void {
   if (!pendingPayload || !button) return;
   showStatus(UI_TEXT.activationPrompt);
@@ -183,7 +208,9 @@ function activatePip(activation: PipActivation, sendResponse: (response: Ack) =>
 
 async function receivePayload(payload: PipPayload): Promise<Ack> {
   pendingPayload = payload;
-  // ライブは保存しない。後から復元しても映像を取り直せない。
+  // live も含めて常に記録する。Text Pin への追記可否の判定のため
+  await chrome.storage.session.set({ [SESSION_KEY.currentKind]: payload.kind });
+  // ライブ本体は保存しない
   if (payload.kind !== 'live') {
     await chrome.storage.session.set({ [SESSION_KEY.payload]: payload });
   }
@@ -250,6 +277,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type === MessageType.RenderPersistentPip) {
     void receivePayload(message.payload as PipPayload).then(sendResponse);
+    return true;
+  }
+  if (message?.type === MessageType.AppendPersistentPipText) {
+    void appendText(message.text as string).then(sendResponse);
     return true;
   }
   return false;
