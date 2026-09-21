@@ -84,9 +84,15 @@ export interface AreaPipPayload {
   rect: Rect;
 }
 
+export interface TextPipEntry {
+  url: string;
+  title: string;
+  text: string;
+}
+
 export interface TextPipPayload {
   kind: 'text';
-  text: string;
+  entries: TextPipEntry[];
 }
 
 /** Live Pin。映像そのものはヘルパーが元タブから直接取りに行く。 */

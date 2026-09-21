@@ -11,6 +11,7 @@ import type {
   ContentMessage,
   PersistentPipState,
   PipPayload,
+  TextPipEntry,
 } from '../shared/types';
 import { setConfirmSwitch, shouldAppendText, shouldConfirmSwitch } from '../shared/settings';
 import { LIVE_RETRY_ERROR, MessageType, UI_TEXT } from '../shared/types';
@@ -321,8 +322,8 @@ async function renderPersistentPip(payload: PipPayload): Promise<Ack> {
   });
 }
 
-async function appendPersistentPipText(text: string): Promise<Ack> {
-  return sendPersistentCommand({ type: MessageType.AppendPersistentPipText, text });
+async function appendPersistentPipText(entry: TextPipEntry): Promise<Ack> {
+  return sendPersistentCommand({ type: MessageType.AppendPersistentPipText, entry });
 }
 
 async function showPersistentPipHelper(): Promise<void> {
@@ -489,10 +490,12 @@ async function runTextPin(fallbackText: string): Promise<void> {
     return;
   }
 
+  const entry: TextPipEntry = { url: location.href, title: document.title, text };
+
   // 表示中も Text Pin で、設定が ON なら、窓を作り直さず追記する
   const state = await queryPersistentPip();
   if (state.open && state.kind === 'text' && (await shouldAppendText())) {
-    const appended = await appendPersistentPipText(text);
+    const appended = await appendPersistentPipText(entry);
     if (!appended.ok) showToast(UI_TEXT.pipFailed);
     return;
   }
@@ -503,7 +506,7 @@ async function runTextPin(fallbackText: string): Promise<void> {
   try {
     await preparePersistentPip();
     const activation = await activatePersistentPip({ kind: 'text' });
-    const rendered = await renderPersistentPip({ kind: 'text', text });
+    const rendered = await renderPersistentPip({ kind: 'text', entries: [entry] });
     if (!activation.ok || !rendered.ok) await showPersistentPipHelper();
   } catch (error) {
     console.error('[ClipPiP] failed to hand the text to the helper window', error);

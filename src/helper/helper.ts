@@ -12,7 +12,14 @@ import { pipManager } from '../pip/pip-manager';
 import { renderTextPip, textPipSize } from '../pip/text-pip';
 import { localizeDocument } from '../shared/localize';
 import { focusSourceTab, getSourceTabId, isSourceTabAlive } from '../shared/source-tab';
-import type { Ack, LivePipPayload, PipActivation, PipPayload, TextPipPayload } from '../shared/types';
+import type {
+  Ack,
+  LivePipPayload,
+  PipActivation,
+  PipPayload,
+  TextPipEntry,
+  TextPipPayload,
+} from '../shared/types';
 import { LIVE_RETRY_ERROR, MessageType, SESSION_KEY, UI_TEXT } from '../shared/types';
 
 localizeDocument();
@@ -159,13 +166,13 @@ async function renderPayload(
     return;
   }
 
-  renderTextPip(win, payload.text, [...controls, clearTextControl()]);
+  renderTextPip(win, payload.entries, [...controls, clearTextControl()]);
 }
 
 async function clearText(): Promise<void> {
   if (!pendingPayload || pendingPayload.kind !== 'text') return;
 
-  const payload: TextPipPayload = { kind: 'text', text: '' };
+  const payload: TextPipPayload = { kind: 'text', entries: [] };
   pendingPayload = payload;
   await chrome.storage.session.set({
     [SESSION_KEY.currentKind]: payload.kind,
@@ -177,12 +184,12 @@ async function clearText(): Promise<void> {
 }
 
 /** Text Pin へ追記 */
-async function appendText(text: string): Promise<Ack> {
+async function appendText(entry: TextPipEntry): Promise<Ack> {
   if (!pendingPayload || pendingPayload.kind !== 'text') {
     return { ok: false, error: 'no text pin is open' };
   }
 
-  const payload: TextPipPayload = { kind: 'text', text: `${pendingPayload.text}\n\n${text}` };
+  const payload: TextPipPayload = { kind: 'text', entries: [...pendingPayload.entries, entry] };
   pendingPayload = payload;
   await chrome.storage.session.set({
     [SESSION_KEY.currentKind]: payload.kind,
@@ -308,7 +315,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message?.type === MessageType.AppendPersistentPipText) {
-    void appendText(message.text as string).then(sendResponse);
+    void appendText(message.entry as TextPipEntry).then(sendResponse);
     return true;
   }
   return false;
