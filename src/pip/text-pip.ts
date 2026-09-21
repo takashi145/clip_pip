@@ -1,3 +1,4 @@
+import { buildTextFragmentUrl } from '../shared/text-fragment';
 import type { TextPipEntry } from '../shared/types';
 import { PIP_SIZE } from '../shared/types';
 import type { PipControl } from './pip-manager';
@@ -25,14 +26,21 @@ export function renderTextPip(win: Window, entries: TextPipEntry[], controls: Pi
   const list = createElement(doc, 'div', { margin: '0' });
 
   entries.forEach((entry, index) => {
-    const heading = createElement(doc, 'div', {
+    const heading = createElement(doc, 'a', {
+      display: 'block',
       margin: index === 0 ? '0 0 4px' : '16px 0 4px',
       color: theme.subtleText,
       fontSize: '12px',
       fontWeight: '600',
+      textDecoration: 'none',
       overflowWrap: 'anywhere',
     });
+    heading.href = buildTextFragmentUrl(entry.url, entry.text);
+    heading.target = '_blank';
+    heading.rel = 'noopener noreferrer';
     heading.textContent = entry.title || entry.url;
+    heading.addEventListener('mouseenter', () => heading.style.setProperty('text-decoration', 'underline'));
+    heading.addEventListener('mouseleave', () => heading.style.setProperty('text-decoration', 'none'));
     list.append(heading);
 
     const body = createElement(doc, 'div', {
