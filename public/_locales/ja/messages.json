@@ -104,6 +104,9 @@
   "returnToTab": {
     "message": "元のタブへ"
   },
+  "clearText": {
+    "message": "クリア"
+  },
   "contextMenuAreaPin": {
     "message": "範囲を選択してPiP表示"
   },

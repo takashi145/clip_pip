@@ -222,6 +222,9 @@ export const UI_TEXT = {
   get returnToTab(): string {
     return chrome.i18n.getMessage('returnToTab');
   },
+  get clearText(): string {
+    return chrome.i18n.getMessage('clearText');
+  },
   get contextMenuAreaPin(): string {
     return chrome.i18n.getMessage('contextMenuAreaPin');
   },

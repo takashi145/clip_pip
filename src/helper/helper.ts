@@ -74,6 +74,20 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   removeReturnButton();
 });
 
+/** 追記で溜めた内容を消して空の Text Pin に戻す、Text Pin 専用。 */
+const CLEAR_TEXT_CONTROL_ID = 'clear-text-pin';
+
+function clearTextControl(): PipControl {
+  return {
+    id: CLEAR_TEXT_CONTROL_ID,
+    glyph: '✕',
+    label: UI_TEXT.clearText,
+    onClick: () => {
+      void clearText();
+    },
+  };
+}
+
 // 元タブの実描画画素数に上限を合わせる。超えて受け取っても等倍表示では捨てるだけ
 const CAPTURE_HEADROOM = 1;
 const CAPTURE_FRAME_RATE = 30;
@@ -145,7 +159,21 @@ async function renderPayload(
     return;
   }
 
-  renderTextPip(win, payload.text, controls);
+  renderTextPip(win, payload.text, [...controls, clearTextControl()]);
+}
+
+async function clearText(): Promise<void> {
+  if (!pendingPayload || pendingPayload.kind !== 'text') return;
+
+  const payload: TextPipPayload = { kind: 'text', text: '' };
+  pendingPayload = payload;
+  await chrome.storage.session.set({
+    [SESSION_KEY.currentKind]: payload.kind,
+    [SESSION_KEY.payload]: payload,
+  });
+
+  const win = pipManager.current;
+  if (win) await renderPayload(win, payload, null);
 }
 
 /** Text Pin へ追記 */
